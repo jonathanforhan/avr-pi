@@ -4,3 +4,10 @@
 out/
 build*/
 .cache/
+
+*.o
+*.d
+*.bin
+*.eep
+*.elf
+*.hex
