@@ -40,7 +40,7 @@ bool ATmega238P_WriteProgram(ATmega238P_Memory* memory, const char* hex) {
                 u8 b = xstr2byte(hex);
                 hex += 2;
 
-                memory->flash[addr + i] = b;
+                ((u8*)memory->flash)[addr + i] = b;
                 checksum += b;
             }
 
