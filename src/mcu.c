@@ -1,8 +1,9 @@
-#include "ATmega328P.h"
+#include "mcu.h"
 
 #include <assert.h>
 #include <ctype.h>
-#include "AVR.h"
+#include <stdio.h>
+#include "avr.h"
 #include "common.h"
 
 static inline u8 xstr2byte(const char s[2]) {
@@ -12,8 +13,8 @@ static inline u8 xstr2byte(const char s[2]) {
     return b;
 }
 
-bool ATmega238P_WriteProgram(ATmega238P_Memory* memory, const char* hex) {
-    assert(memory && hex);
+result program(mcu* mcu, const char* hex) {
+    assert(mcu && hex);
 
     while (*hex) {
         if (*hex != ':') {
@@ -40,7 +41,7 @@ bool ATmega238P_WriteProgram(ATmega238P_Memory* memory, const char* hex) {
                 u8 b = xstr2byte(hex);
                 hex += 2;
 
-                ((u8*)memory->flash)[addr + i] = b;
+                ((u8*)mcu->flash)[addr + i] = b;
                 checksum += b;
             }
 
@@ -48,17 +49,34 @@ bool ATmega238P_WriteProgram(ATmega238P_Memory* memory, const char* hex) {
 
             if (checksum != xstr2byte(hex)) {
                 LOG_ERROR("checksum failure");
-                return false;
+                return ERROR;
             }
             hex += 2;
         } break;
         case EOF_RECORD:
-            return true;
+            return OK;
         default:
             LOG_ERROR("TODO");
-            return false;
+            return ERROR;
         }
     }
 
-    return false;
+    return ERROR;
+}
+
+void cycle(mcu* mcu) {
+    u16 op = mcu->flash[mcu->cpu.pc];
+
+    printf("%#x\n", op);
+
+    // 7-bit op
+    switch (op & OP_MASK_7) {
+    case OP_TYPE_JUMP:
+        switch (op & OP_MASK_JUMP) {
+        case OP_JMP: {
+            printf("jmp\n");
+        } break;
+        }
+        break;
+    }
 }

@@ -13,6 +13,11 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+typedef enum result {
+    OK    = 0,
+    ERROR = -1,
+} result;
+
 #define KB 1024U
 #define MB 1024U * KB
 
@@ -35,3 +40,9 @@ typedef int64_t i64;
     })
 
 #define LOG_ERROR(MSG, ...) fprintf(stderr, "%s:%d ERROR " MSG "\n", __func__, __LINE__, ##__VA_ARGS__)
+
+#ifdef NDEBUG
+#define LOG_DEBUG(MSG, ...) (void)0
+#else
+#define LOG_DEBUG(MSG, ...) fprintf(stderr, "%s:%d DEBUG " MSG "\n", __func__, __LINE__, ##__VA_ARGS__)
+#endif

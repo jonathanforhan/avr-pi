@@ -4,14 +4,14 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "ATmega328P.h"
 #include "common.h"
+#include "mcu.h"
 
 static char buf[MB];
 
 int main(int argc, char* argv[]) {
-    int fd                = -1;
-    ATmega238P_Memory mem = {0};
+    int fd  = -1;
+    mcu mcu = {0};
 
     if (argc < 2 || strlen(argv[1]) < 5 || strcasecmp(strrchr(argv[1], '.'), ".hex")) {
         LOG_ERROR("invalid command");
@@ -37,10 +37,12 @@ int main(int argc, char* argv[]) {
     buf[sizeof(buf) - 1] = 0;
     printf("%s", buf);
 
-    if (!ATmega238P_WriteProgram(&mem, buf)) {
+    if (program(&mcu, buf) != OK) {
         LOG_ERROR("failed to write program to flash");
         goto err;
     }
+
+    cycle(&mcu);
 
     return 0;
 

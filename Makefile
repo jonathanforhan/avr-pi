@@ -3,7 +3,7 @@ TARGET := avr-pi
 BUILD_DIR := build
 SRC_DIR := src
 
-CFLAGS := -std=gnu99 -MMD -MP -Wall -Wextra -Wpedantic
+CFLAGS := -std=gnu99 -MMD -MP -Wall -Wextra
 
 
 DEBUG ?= 1
