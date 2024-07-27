@@ -31,9 +31,9 @@
 
 #define KB 1024U
 
-#define GET_BIT(X, N) (((X) >> (N)) & 1)
-#define SET_BIT(X, N) (X |= (1 << (N)))
-#define CLR_BIT(X, N) (X &= ~(1 << (N)))
+#define GET_BIT(X, N)    (((X) >> (N)) & 1)
+#define SET_BIT(X, N, V) (X |= ((!!(V)) << (N)))
+#define CLR_BIT(X, N)    (X &= ~(1 << (N)))
 
 #define TO_U16(HI, LO) ((((uint16_t)(HI)) << 8) | ((uint16_t)(LO)))
 #define TO_U32(HI, LO) ((((uint32_t)(HI)) << 16) | ((uint32_t)(LO)))

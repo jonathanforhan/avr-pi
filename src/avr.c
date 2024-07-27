@@ -18,8 +18,8 @@
 
 #include <avr.h>
 
-#include <assert.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "avr_defs.h"
 #include "defs.h"
 
@@ -30,7 +30,41 @@ static inline u8 xstr2byte(const char *restrict s) {
     return b;
 }
 
-int avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
+// add with carry
+static inline void adc(AVR_MCU *restrict mcu, u8 *Rd, const u8 *Rr) {
+    // R <- Rd + Rr + C
+    const u8 R = *Rd + *Rr + GET_BIT(mcu->sreg, SREG_C);
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
+    SET_BIT(mcu->sreg, SREG_H, (Rd3 & Rr3) | (Rr3 & ~R3) | (~R3 & Rd3));
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+
+    // V = Rd7 & Rr7 & ~R7 | ~Rd7 & ~Rr7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & Rr7 & ~R7) | (~Rd7 & ~Rr7) | R7);
+
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+
+    // Z = Rd7 & Rr7 | Rr7 & ~R7 | ~R7 & Rd7
+    SET_BIT(mcu->sreg, SREG_Z, (Rd7 & Rr7) | (Rr7 & ~R7) | (~R7 & Rd7));
+
+    // C = Rd7 & Rr7 | Rr7 & ~R7 | ~R7 & Rd7
+    SET_BIT(mcu->sreg, SREG_C, (Rd7 & Rr7) | (Rr7 & ~R7) | (~R7 & Rd7));
+
+    *Rd = R;
+
+    LOG_DEBUG("adc %#x,%#x", *Rd, *Rr);
+}
+
+AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
     while (*hex) {
         if (*hex != ':') {
             hex++;
@@ -63,12 +97,7 @@ int avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
             checksum = ~checksum + 1; // two's complement
 
             if (checksum != xstr2byte(hex)) {
-                LOG_ERROR("checksum failure: real %#x, expected %#x, len %#x, addr %#x, type %#x",
-                          checksum,
-                          xstr2byte(hex),
-                          len,
-                          addr,
-                          type);
+                LOG_ERROR("checksum failure: real %#x, expected %#x", checksum, xstr2byte(hex));
                 return AVR_ERROR;
             }
             hex += 2;
@@ -88,21 +117,8 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
     const u16 op = mcu->flash[mcu->pc];
 
     switch (op & OP_MASK_6) {
-    case OP_ADC: {
-        u8 *Rd       = &mcu->reg[GET_REG_DIRECT_DST(op)];
-        const u8 *Rr = &mcu->reg[GET_REG_DIRECT_SRC(op)];
-
-        const u8 R = *Rd + *Rr + GET_BIT(mcu->sreg, SREG_C);
-
-        // PC <- PC + 1
-        mcu->pc++;
-
-        // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
-
-        // S = N ^ V
-
-        LOG_DEBUG("adc %#x,%#x", *Rd, *Rr);
-    }
+    case OP_ADC:
+        adc(mcu, &mcu->reg[GET_REG_DIRECT_DST(op)], &mcu->reg[GET_REG_DIRECT_SRC(op)]);
         return;
     default:
         LOG_DEBUG("unknown instruction %#x", op);
@@ -125,3 +141,29 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         return;
     }
 }
+
+#ifdef AVR_TEST
+AVR_Result avr_run_tests(void) {
+    AVR_MCU mcu = {0};
+
+    // adc
+    for (int i = 0; i < 256; i++) {
+        mcu.reg[0] = i;
+
+        for (int j = 0; j < 256; j++) {
+            mcu.reg[1] = j;
+
+            u32 sum = (u32)mcu.reg[0] + (u32)mcu.reg[1];
+
+            adc(&mcu, &mcu.reg[0], &mcu.reg[1]);
+            if (!((u32)(mcu.reg[0] + GET_BIT(mcu.sreg, SREG_C)) == sum)) {
+                LOG_ERROR(
+                    "test failed adc: real %#x, expected %#x", (u32)(mcu.reg[0] + GET_BIT(mcu.sreg, SREG_C)), sum);
+                return AVR_ERROR;
+            }
+        }
+    }
+
+    return AVR_OK;
+}
+#endif

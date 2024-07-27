@@ -21,6 +21,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Result type for avr_* functions.
  */
@@ -73,8 +77,24 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex);
 /**
  * @brief Cycle the CPU, fetching and executing one instruction from programmed flash.
  *
- * @param mcu Microcontroller Emulator.
+ * @param mcu Microcontroller Emulator
  */
 void avr_cycle(AVR_MCU *restrict mcu);
+
+#define AVR_TEST
+#warning "disable always test before release"
+
+#ifdef AVR_TEST
+/**
+ * @brief Run build tests.
+ *
+ * @return AVR_OK on success
+ */
+AVR_Result avr_run_tests(void);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __AVR_H__

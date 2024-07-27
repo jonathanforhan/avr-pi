@@ -38,7 +38,8 @@ int main(int argc, char *argv[]) {
         goto err;
     }
 
-    if ((fd = open(argv[1], O_RDONLY)) < 0) {
+    fd = open(argv[1], O_RDONLY);
+    if (fd < 0) {
         LOG_ERROR("invalid filepath %s", argv[1]);
         goto err;
     }
