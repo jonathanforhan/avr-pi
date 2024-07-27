@@ -2,6 +2,7 @@ TARGET := avr-pi
 
 BUILD_DIR := build
 SRC_DIR := src
+INC_DIR := include
 
 CFLAGS := -std=gnu99 -MMD -MP -Wall -Wextra
 
@@ -17,7 +18,7 @@ else
 endif
 
 
-INCS := $(shell find $(SRC_DIR) -type d)
+INCS := $(SRC_DIR) $(INC_DIR)
 SRCS := $(shell find $(SRC_DIR) -name '*.c' -or -name '*.s')
 OBJS := $(SRCS:%=$(OUT_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
