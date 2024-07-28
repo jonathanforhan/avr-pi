@@ -20,5 +20,7 @@ CheckOptions:
     value:           llvm
   - key:             google-readability-function-size.StatementThreshold
     value:           '800'
+  - key:             bugprone-easily-swappable-parameters.IgnoredParameterNames
+    value:           'r;d;s;k;K'
 ...
 

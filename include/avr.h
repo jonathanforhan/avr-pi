@@ -43,6 +43,9 @@ typedef struct AVR_MCU {
     /** @brief Program counter. */
     uint32_t pc;
 
+    /** @brief Stack pointer. */
+    uint32_t sp;
+
     /** @brief Status Register. */
     uint8_t sreg;
 
@@ -66,6 +69,13 @@ typedef struct AVR_MCU {
 } AVR_MCU;
 
 /**
+ * @brief Initialize the memory inside of mcu, MUST be called on creatation.
+ *
+ * @param mcu Microcontroller Emulator
+ */
+void avr_mcu_init(AVR_MCU *restrict mcu);
+
+/**
  * @brief Program the MCU with a AVR hex file compiled using arduino-cli.
  *
  * @param mcu Microcontroller Emulator
@@ -81,8 +91,8 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex);
  */
 void avr_cycle(AVR_MCU *restrict mcu);
 
-#define AVR_TEST
 #warning "disable always test before release"
+#define AVR_TEST
 
 #ifdef AVR_TEST
 /**

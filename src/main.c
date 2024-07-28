@@ -30,8 +30,10 @@
 static char buf[512 * KB];
 
 int main(int argc, char *argv[]) {
-    int fd      = -1;
-    AVR_MCU mcu = {0};
+    int fd = -1;
+    AVR_MCU mcu;
+
+    avr_mcu_init(&mcu);
 
     if (argc < 2 || strnlen(argv[1], MAX_PATH) < 5 || strcasecmp(strrchr(argv[1], '.'), ".hex") != 0) {
         LOG_ERROR("invalid command");

@@ -32,11 +32,15 @@
 #define KB 1024U
 
 #define GET_BIT(X, N)    (((X) >> (N)) & 1)
-#define SET_BIT(X, N, V) (X |= ((!!(V)) << (N)))
+#define SET_BIT(X, N, V) (X = (X & ~(1 << (N))) | ((!!(V)) << (N)))
 #define CLR_BIT(X, N)    (X &= ~(1 << (N)))
+
+#define TWO_COMP(X) (~(X) + 1)
 
 #define TO_U16(HI, LO) ((((uint16_t)(HI)) << 8) | ((uint16_t)(LO)))
 #define TO_U32(HI, LO) ((((uint32_t)(HI)) << 16) | ((uint32_t)(LO)))
+
+#define ASSERT_BOUNDS(X, LO, HI) assert((X) >= (LO) && (X) <= (HI))
 
 typedef uint8_t u8;
 typedef uint16_t u16;
