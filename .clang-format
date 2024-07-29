@@ -5,6 +5,7 @@ AlignAfterOpenBracket: Align
 AlignArrayOfStructures: None
 AlignConsecutiveMacros:
   Enabled: true
+  AcrossComments: true
 AlignConsecutiveAssignments: Consecutive
 AlignConsecutiveBitFields: None
 AlignConsecutiveDeclarations: None

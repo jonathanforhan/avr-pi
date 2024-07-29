@@ -16,6 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file avr.h
+ * @brief Emulates ATmega328P.
+ */
+
 #ifndef __AVR_H__
 #define __AVR_H__
 
@@ -24,6 +29,48 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @def AVR_MCU_REG_OFFSET
+ * @brief Data offset used by registers.
+ */
+#define AVR_MCU_REG_OFFSET 0x0000
+
+/**
+ * @def AVR_MCU_IO_REG_OFFSET
+ * @brief Data offset used by io registers.
+ */
+#define AVR_MCU_IO_REG_OFFSET 0x0020
+
+/**
+ * @def AVR_MCU_EXT_IO_REG_OFFSET
+ * @brief Data offset used by extended io registers.
+ */
+#define AVR_MCU_EXT_IO_REG_OFFSET 0x0060
+
+/**
+ * @def AVR_MCU_STRAM_OFFSET
+ * @brief Data offset used by sram.
+ */
+#define AVR_MCU_SRAM_OFFSET 0x0100
+
+/**
+ * @def AVR_MCU_DATA_SIZE
+ * @brief Size of data section in MCU, 2304 bytes.
+ */
+#define AVR_MCU_DATA_SIZE 0x08FF
+
+/**
+ * @def AVR_MCU_FLASH_SIZE
+ * @brief Size of flash section in MCU, 32KB.
+ */
+#define AVR_MCU_FLASH_SIZE 0x8000
+
+/**
+ * @def AVR_MCU_EEPROM_SIZE
+ * @brief Size of eeprom section in MCU, 1KB.
+ */
+#define AVR_MCU_EEPROM_SIZE 0x08FF
 
 /**
  * @brief Result type for avr_* functions.
@@ -49,23 +96,40 @@ typedef struct AVR_MCU {
     /** @brief Status Register. */
     uint8_t sreg;
 
-    /** @brief Working registers. */
-    uint8_t reg[32];
+    /** @brief Working registers offset in data memory. */
+    uint8_t *reg;
 
-    /** @brief IO registers. */
-    uint8_t io_reg[64];
+    /** @brief IO registers offset in data memory. */
+    uint8_t *io_reg;
 
-    /** @brief Extended IO registers. */
-    uint8_t ext_io_reg[160];
+    /** @brief Extended IO registers offset in data memory. */
+    uint8_t *ext_io_reg;
 
-    /** @brief SRAM data section, 2KB. */
-    uint8_t data[0x0800];
+    /** @brief SRAM data section offset in data memory. */
+    uint8_t *sram;
 
-    /** @brief Flash memory, 32KB. */
-    uint16_t flash[0x4000];
+    /**
+     * @brief Entire data memory used by other members.
+     *
+     * +----------------------+
+     * |     Data Memory      | 0x0000 - 0x08FF
+     * +----------------------+
+     * |     32 Registers     | 0x0000 - 0x001F
+     * +----------------------+
+     * |   64 IO Registers    | 0x0020 - 0x005F
+     * +----------------------+
+     * | 160 Ext IO Registers | 0x0060 - 0x00FF
+     * +----------------------+
+     * |     Interal SRAM     | 0x0100 - 0x08FF
+     * +----------------------+
+     */
+    uint8_t data[AVR_MCU_DATA_SIZE];
 
-    /** @brief EEPROM memory, 1KB. */
-    uint8_t eeprom[0x0400];
+    /** @brief Flash memory. */
+    uint16_t flash[AVR_MCU_FLASH_SIZE / sizeof(uint16_t)];
+
+    /** @brief EEPROM memory. */
+    uint8_t eeprom[AVR_MCU_EEPROM_SIZE];
 } AVR_MCU;
 
 /**

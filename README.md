@@ -4,7 +4,7 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
 ## Build
 
-All build command should be run from project root directory
+All build commands should be run from project root directory
 
 ### Dependencies
 
