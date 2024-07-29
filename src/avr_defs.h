@@ -100,22 +100,22 @@
 #define OP_FMULS  0x0380 //  [9]  0000 0011 1ddd 0rrr
 #define OP_FMULSU 0x0388 //  [9]  0000 0011 1ddd 1rrr
 /* Branch Instructions */
-#define OP_RJMP   0x____
+#define OP_RJMP   0xC000 //  [4]  1100 kkkk kkkk kkkk
 #define OP_IJMP   0x9409 // [16]  1001 0100 0000 1001
 #define OP_JMP    0x940C //  [7]  1001 010k kkkk 110k  kkkk kkkk kkkk kkkk
-#define OP_RCALL  0x____
+#define OP_RCALL  0xD000 //  [4]  1101 kkkk kkkk kkkk
 #define OP_ICALL  0x9509 // [16]  1001 0101 0000 1001
 #define OP_CALL   0x940E //  [7]  1001 010k kkkk 111k  kkkk kkkk kkkk kkkk
-#define OP_RET    0x____
-#define OP_RETI   0x____
+#define OP_RET    0x9508 // [16]  1001 0101 0000 1000
+#define OP_RETI   0x9518 // [16]  1001 0101 0001 1000
 #define OP_CPSE   0x1000 //  [6]  0001 00rd dddd rrrr
 #define OP_CP     0x1400 //  [6]  0001 01rd dddd rrrr
 #define OP_CPC    0x0400 //  [6]  0000 01rd dddd rrrr
 #define OP_CPI    0x3000 //  [4]  0011 KKKK dddd KKKK
-#define OP_SBRC   0x____
-#define OP_SBRS   0x____
-#define OP_SBIC   0x____
-#define OP_SBIS   0x____
+#define OP_SBRC   0xFC00 //  [7]  1111 110r rrrr 0bbb
+#define OP_SBRS   0xFE00 //  [7]  1111 111r rrrr 0bbb
+#define OP_SBIC   0x9900 //  [8]  1001 1001 AAAA Abbb
+#define OP_SBIS   0x9B00 //  [8]  1001 1011 AAAA Abbb
 #define OP_BRBS   0xF000 //  [6]  1111 00kk kkkk ksss
 #define OP_BRBC   0xF400 //  [6]  1111 01kk kkkk ksss
 #define OP_BREQ   0xF001 //  [6]  1111 00kk kkkk k001  (UNUSED)

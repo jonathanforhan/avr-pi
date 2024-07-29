@@ -27,7 +27,7 @@
 
 #define MAX_PATH 256
 
-static char buf[512 * KB];
+static char buf[512 * 1024];
 
 int main(int argc, char *argv[]) {
     int fd = -1;

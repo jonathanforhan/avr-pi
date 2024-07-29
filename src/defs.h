@@ -30,18 +30,28 @@
 #define LOG_DEBUG(MSG, ...) (void)fprintf(stderr, "%s:%d DEBUG " MSG "\n", __func__, __LINE__, ##__VA_ARGS__)
 #endif
 
-#define KB 1024U
+// get Nth bit from X returns 0 or 1
+#define GET_BIT(X, N) (((X) >> (N)) & 1)
 
-#define GET_BIT(X, N)    (((X) >> (N)) & 1)
+// set Nth bit in X to boolean value V
 #define SET_BIT(X, N, V) (X = (X & ~(1 << (N))) | ((!!(V)) << (N)))
-#define PUT_BIT(X, N)    ((X) |= (1 << (N)))
-#define CLR_BIT(X, N)    (X &= ~(1 << (N)))
 
+// put Nth bit in X to high
+#define PUT_BIT(X, N) ((X) |= (1 << (N)))
+
+// clear Nth bit from X
+#define CLR_BIT(X, N) (X &= ~(1 << (N)))
+
+// returns two's complement
 #define TWO_COMP(X) (~(X) + 1)
 
-#define TO_U16(HI, LO) ((((uint16_t)(HI)) << 8) | ((uint16_t)(LO)))
-#define TO_U32(HI, LO) ((((uint32_t)(HI)) << 16) | ((uint32_t)(LO)))
+// convert a 12bit number to i16
+#define I12_TO_I16(X) ((X) | GET_BIT((X), 11) * 0xF000)
 
+// convert a 7bit number to i16
+#define I7_TO_I16(X) ((X) | GET_BIT((X), 6) * 0xFF80)
+
+// assert X is equal to or between LO and HI
 #define ASSERT_BOUNDS(X, LO, HI) assert((X) >= (LO) && (X) <= (HI))
 
 typedef uint8_t u8;

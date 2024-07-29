@@ -454,7 +454,7 @@ static inline void neg(AVR_MCU *restrict mcu, u8 d) {
     u8 *Rd = &mcu->reg[d];
 
     // R <- $00 - Rd
-    const u8 R = ~(*Rd) + 1;
+    const u8 R = TWO_COMP(*Rd);
 
     // PC <- PC + 1
     mcu->pc++;
@@ -675,6 +675,304 @@ static inline void fmulsu(AVR_MCU *restrict mcu, u8 d, u8 r) {
     *(i16 *)&mcu->reg[0] = (i16)R;
 }
 
+/*******************************************************************************
+ * Branch Instructions
+ ******************************************************************************/
+
+// rjmp - relative jump
+static inline void rjmp(AVR_MCU *restrict mcu, i16 k) {
+    k = I12_TO_I16(k);
+    ASSERT_BOUNDS(k, -2048, 2047);
+
+    // PC <- PC + k + 1
+    mcu->pc += k + 1;
+}
+
+// ijmp - indirect jump
+static inline void ijmp(AVR_MCU *restrict mcu) {
+    // PC(15:0) <- Z(15:0)
+    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
+}
+
+// jmp - jump
+static inline void jmp(AVR_MCU *restrict mcu, u16 k) {
+    ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
+
+    // PC <- k
+    mcu->pc = k;
+}
+
+// rcall - relative call
+static inline void rcall(AVR_MCU *restrict mcu, i16 k) {
+    k = I12_TO_I16(k);
+    ASSERT_BOUNDS(k, -2048, 2047);
+
+    // STACK <- PC + 1
+    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
+
+    // SP <- SP - 2
+    mcu->sp -= 2;
+
+    // PC <- PC + k + 1
+    mcu->pc += k + 1;
+}
+
+// icall indirect call to subroutine
+static inline void icall(AVR_MCU *restrict mcu) {
+    // STACK <- PC + 1
+    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
+
+    // SP <- SP - 2
+    mcu->sp -= 2;
+
+    // PC(15:0) <- Z(15:0)
+    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
+}
+
+// call - long call to a subroutine
+static inline void call(AVR_MCU *restrict mcu, u16 k) {
+    ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
+
+    // STACK <- PC + 2
+    *((u16 *)&mcu->data[mcu->sp]) = mcu->pc + 2;
+
+    // SP <- PC - 2
+    mcu->sp -= 2;
+
+    // PC <- k
+    mcu->pc = k;
+}
+
+// ret - return from subroutine
+static inline void ret(AVR_MCU *restrict mcu) {
+    // SP <- PC + 2
+    mcu->sp += 2;
+
+    // PC(15:0) <- STACK
+    mcu->pc = *((u16 *)&mcu->data[mcu->sp]);
+}
+
+// reti - return from interrupt
+static inline void reti(AVR_MCU *restrict mcu) {
+    // SP <- PC + 2
+    mcu->sp += 2;
+
+    // PC(15:0) <- STACK
+    mcu->pc = *((u16 *)&mcu->data[mcu->sp]);
+
+    // I = 1
+    PUT_BIT(mcu->sreg, SREG_I);
+}
+
+// cpse - compare skip if equal
+static inline void cpse(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // if Rd == Rr then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (*Rd == *Rr) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// cp - compare
+static inline void cp(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // R = Rd - Rr
+    const u8 R = *Rd - *Rr;
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
+}
+
+// cpc - compare with carry
+static inline void cpc(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // R = Rd - Rr - C
+    const u8 R = *Rd - *Rr - GET_BIT(mcu->sreg, SREG_C);
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0 & Z
+    SET_BIT(mcu->sreg, SREG_Z, R == 0 && GET_BIT(mcu->sreg, SREG_Z));
+    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
+}
+
+// cpi - compare with immediate
+static inline void cpi(AVR_MCU *restrict mcu, u8 d, u8 K) {
+    d += 16;
+    ASSERT_BOUNDS(d, 16, 31);
+    ASSERT_BOUNDS(K, 0, 255);
+
+    const u8 *Rd = &mcu->reg[d];
+
+    // R = Rd - K
+    const u8 R = *Rd - K;
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), K3 = GET_BIT(K, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~K7 & ~R7 | ~Rd7 & K7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~K7 & ~R7) | (~Rd7 & K7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = ~Rd7 & K7 | K7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & K7) | (K7 & R7) | (R7 & ~Rd7));
+}
+
+// sbrc - skip if bit in register is cleared
+static inline void sbrc(AVR_MCU *restrict mcu, u8 r, u8 b) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    const u8 *Rr = &mcu->reg[r];
+
+    // if Rr(b) = 0 then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (GET_BIT(*Rr, b) == 0) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// sbrs - skip if bit in register is set
+static inline void sbrs(AVR_MCU *restrict mcu, u8 r, u8 b) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    const u8 *Rr = &mcu->reg[r];
+
+    // if Rr(b) = 1 then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (GET_BIT(*Rr, b)) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// sbic - skip if bit in io register is cleared
+static inline void sbic(AVR_MCU *restrict mcu, u8 A, u8 b) {
+    ASSERT_BOUNDS(A, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    // if IO(A,b) = 0 then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (GET_BIT(mcu->io_reg[A], b) == 0) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// sbis - skip if bit in io register is set
+static inline void sbis(AVR_MCU *restrict mcu, u8 A, u8 b) {
+    ASSERT_BOUNDS(A, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    // if Rr(b) = 1 then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (GET_BIT(mcu->io_reg[A], b)) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// brbs - branch if bit in sreg is set
+static inline void brbs(AVR_MCU *restrict mcu, i8 k, u8 s) {
+    k = I7_TO_I16(k);
+
+    ASSERT_BOUNDS(k, -64, 63);
+    ASSERT_BOUNDS(s, 0, 7);
+
+    // PC <- PC + k + 1 if true
+    // PC <- PC + 1 if false
+    mcu->pc += GET_BIT(mcu->sreg, s) == 1 ? k + 1 : 1;
+}
+
+// brbc branch if bit in sreg is cleared
+static inline void brbc(AVR_MCU *restrict mcu, i8 k, u8 s) {
+    k = I7_TO_I16(k);
+
+    ASSERT_BOUNDS(k, -64, 63);
+    ASSERT_BOUNDS(s, 0, 7);
+
+    // PC <- PC + k + 1 if true
+    // PC <- PC + 1 if false
+    mcu->pc += GET_BIT(mcu->sreg, s) == 0 ? k + 1 : 1;
+}
+
 // asr arithmetic shift right
 static inline void asr(AVR_MCU *restrict mcu, u8 d) {
     ASSERT_BOUNDS(d, 0, 31);
@@ -736,26 +1034,6 @@ static inline void bld(AVR_MCU *restrict mcu, u8 d, u8 b) {
     mcu->pc++;
 }
 
-// brbc branch if bit in sreg is cleared
-static inline void brbc(AVR_MCU *restrict mcu, i8 k, u8 s) {
-    ASSERT_BOUNDS(k, -64, 63);
-    ASSERT_BOUNDS(s, 0, 7);
-
-    // PC <- PC + k + 1 if true
-    // PC <- PC + 1 if false
-    mcu->pc += GET_BIT(mcu->sreg, s) == 0 ? k + 1 : 1;
-}
-
-// brbs branch if bit in sreg is set
-static inline void brbs(AVR_MCU *restrict mcu, i8 k, u8 s) {
-    ASSERT_BOUNDS(k, -64, 63);
-    ASSERT_BOUNDS(s, 0, 7);
-
-    // PC <- PC + k + 1 if true
-    // PC <- PC + 1 if false
-    mcu->pc += GET_BIT(mcu->sreg, s) == 1 ? k + 1 : 1;
-}
-
 // break break
 static inline void break_(AVR_MCU *restrict mcu) {
     mcu->pc++;
@@ -797,20 +1075,6 @@ static inline void bst(AVR_MCU *restrict mcu, u8 d, u8 b) {
     // T = 0 if bit b in Rd is cleared. Set to 1 otherwise.
 }
 
-// call long call to a subroutine
-static inline void call(AVR_MCU *restrict mcu, u16 k) {
-    ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
-
-    // PC <- k
-    mcu->pc = k;
-
-    // SP <- PC - 2
-    mcu->sp -= 2;
-
-    // STACK <- PC + 2
-    *((u16 *)&mcu->data[mcu->sp]) = mcu->pc + 2;
-}
-
 // cbi clear bit in IO register
 static inline void cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
     ASSERT_BOUNDS(A, 0, 31);
@@ -821,137 +1085,6 @@ static inline void cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
 
     // PC <- PC + 1
     mcu->pc++;
-}
-
-// cp compare
-static inline void cp(AVR_MCU *restrict mcu, u8 d, u8 r) {
-    ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(r, 0, 31);
-
-    const u8 *Rd = &mcu->reg[d];
-    const u8 *Rr = &mcu->reg[r];
-
-    // R = Rd - Rr
-    const u8 R = *Rd - *Rr;
-
-    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
-    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
-
-    // PC <- PC + 1
-    mcu->pc++;
-
-    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
-    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
-    // S = N ^ V
-    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
-    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
-    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
-    // N = R7
-    SET_BIT(mcu->sreg, SREG_N, R7);
-    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, R == 0);
-    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
-    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
-}
-
-// cpc compare with carry
-static inline void cpc(AVR_MCU *restrict mcu, u8 d, u8 r) {
-    ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(r, 0, 31);
-
-    const u8 *Rd = &mcu->reg[d];
-    const u8 *Rr = &mcu->reg[r];
-
-    // R = Rd - Rr - C
-    const u8 R = *Rd - *Rr - GET_BIT(mcu->sreg, SREG_C);
-
-    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
-    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
-
-    // PC <- PC + 1
-    mcu->pc++;
-
-    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
-    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
-    // S = N ^ V
-    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
-    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
-    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
-    // N = R7
-    SET_BIT(mcu->sreg, SREG_N, R7);
-    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0 & Z
-    SET_BIT(mcu->sreg, SREG_Z, R == 0 && GET_BIT(mcu->sreg, SREG_Z));
-    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
-    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
-}
-
-// cpi compare with immediate
-static inline void cpi(AVR_MCU *restrict mcu, u8 d, u8 K) {
-    d += 16;
-    ASSERT_BOUNDS(d, 16, 31);
-    ASSERT_BOUNDS(K, 0, 255);
-
-    const u8 *Rd = &mcu->reg[d];
-
-    // R = Rd - K
-    const u8 R = *Rd - K;
-
-    const u8 Rd3 = GET_BIT(*Rd, 3), K3 = GET_BIT(K, 3), R3 = GET_BIT(R, 3);
-    const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
-
-    // PC <- PC + 1
-    mcu->pc++;
-
-    // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
-    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
-    // S = N ^ V
-    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
-    // V = Rd7 & ~K7 & ~R7 | ~Rd7 & K7 & R7
-    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~K7 & ~R7) | (~Rd7 & K7 & R7));
-    // N = R7
-    SET_BIT(mcu->sreg, SREG_N, R7);
-    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, R == 0);
-    // C = ~Rd7 & K7 | K7 & R7 | R7 & ~Rd7
-    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & K7) | (K7 & R7) | (R7 & ~Rd7));
-}
-
-// cpse compare skip if equal
-static inline void cpse(AVR_MCU *restrict mcu, u8 d, u8 r) {
-    ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(r, 0, 31);
-
-    const u8 *Rd = &mcu->reg[d];
-    const u8 *Rr = &mcu->reg[r];
-
-    // if Rd == Rr then PC <- PC + 2 (or 3) else PC <- PC + 1
-    if (*Rd == *Rr) {
-        u16 next_op = mcu->flash[mcu->pc + 1];
-
-        // PC <- PC + 2 (or 3)
-        mcu->pc += 2 + IS_32BIT_OP(next_op);
-    } else {
-        // PC <- PC + 1
-        mcu->pc++;
-    }
-}
-
-// icall indirect call to subroutine
-static inline void icall(AVR_MCU *restrict mcu) {
-    // PC(15:0) <- Z(15:0)
-    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
-
-    // SP <- SP - 2
-    mcu->sp -= 2;
-
-    // STACK <- PC + 1
-    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
-}
-
-// ijmp indirect jump
-static inline void ijmp(AVR_MCU *restrict mcu) {
-    // PC(15:0) <- Z(15:0)
-    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
 }
 
 // in load an IO location to register
@@ -966,12 +1099,6 @@ static inline void in(AVR_MCU *restrict mcu, u8 d, u8 A) {
 
     // PC <- PC + 1
     mcu->pc++;
-}
-
-// jmp jump
-static inline void jmp(AVR_MCU *restrict mcu, u16 k) {
-    // PC <- k
-    mcu->pc = k;
 }
 
 // lac load and clear
@@ -1127,7 +1254,7 @@ void avr_mcu_init(AVR_MCU *restrict mcu) {
     mcu->io_reg     = &mcu->data[AVR_MCU_IO_REG_OFFSET];
     mcu->ext_io_reg = &mcu->data[AVR_MCU_EXT_IO_REG_OFFSET];
     mcu->sram       = &mcu->data[AVR_MCU_SRAM_OFFSET];
-    mcu->sp         = sizeof(mcu->data);
+    mcu->sp         = sizeof(mcu->data) - 2;
 }
 
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
@@ -1210,6 +1337,16 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         ori(mcu, d, K);
         return;
     }
+    case OP_RJMP: {
+        const i16 k = (i16)(op & 0x0FFF);
+        rjmp(mcu, k);
+        return;
+    }
+    case OP_RCALL: {
+        const i16 k = (i16)(op & 0x0FFF);
+        rcall(mcu, k);
+        return;
+    }
     case OP_CPI: {
         const u8 d = GET_REG_IMMEDIATE_DST(op);
         const u8 K = GET_REG_IMMEDIATE_CONST(op);
@@ -1288,16 +1425,10 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         mul(mcu, d, r);
         return;
     }
-    case OP_BRBC: {
-        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
-        const u8 s = op & 0x0003;
-        brbc(mcu, k, s);
-        return;
-    }
-    case OP_BRBS: {
-        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
-        const u8 s = op & 0x0003;
-        brbs(mcu, k, s);
+    case OP_CPSE: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        cpse(mcu, d, r);
         return;
     }
     case OP_CP: {
@@ -1312,10 +1443,16 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         cpc(mcu, d, r);
         return;
     }
-    case OP_CPSE: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
-        cpse(mcu, d, r);
+    case OP_BRBC: {
+        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
+        const u8 s = op & 0x0003;
+        brbc(mcu, k, s);
+        return;
+    }
+    case OP_BRBS: {
+        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
+        const u8 s = op & 0x0003;
+        brbs(mcu, k, s);
         return;
     }
     }
@@ -1324,6 +1461,18 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      * 7 bit op
      **************************************************************************/
     switch (op & OP_MASK_7_1) {
+    case OP_SBRC: {
+        const u8 r = (op & 0x01F0) >> 4;
+        const u8 b = op & 0x0003;
+        sbrc(mcu, r, b);
+        return;
+    }
+    case OP_SBRS: {
+        const u8 r = (op & 0x01F0) >> 4;
+        const u8 b = op & 0x0003;
+        sbrs(mcu, r, b);
+        return;
+    }
     case OP_BLD: {
         const u8 d = GET_REG_DIRECT_DST(op);
         const u8 b = op & 0x0003;
@@ -1339,14 +1488,14 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
     }
 
     switch (op & OP_MASK_7_3) {
-    case OP_CALL: {
-        const u16 k = mcu->flash[mcu->pc + 1];
-        call(mcu, k);
+    case OP_JMP: {
+        const u16 k = mcu->flash[mcu->pc + 1]; // works because address space fits in 16bits
+        jmp(mcu, k);
         return;
     }
-    case OP_JMP: {
-        const u16 k = mcu->flash[mcu->pc + 1];
-        jmp(mcu, k);
+    case OP_CALL: {
+        const u16 k = mcu->flash[mcu->pc + 1]; // works because address space fits in 16bits
+        call(mcu, k);
         return;
     }
     }
@@ -1462,6 +1611,18 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         muls(mcu, d, r);
         return;
     }
+    case OP_SBIC: {
+        const u8 A = (op & 0x00F8) >> 3;
+        const u8 b = op & 0x0003;
+        sbic(mcu, A, b);
+        return;
+    }
+    case OP_SBIS: {
+        const u8 A = (op & 0x00F8) >> 3;
+        const u8 b = op & 0x0003;
+        sbis(mcu, A, b);
+        return;
+    }
     case OP_CBI: {
         const u8 A = (op & 0x00F8) >> 3;
         const u8 b = op & 0x0003;
@@ -1530,14 +1691,20 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      * 16 bit op
      **************************************************************************/
     switch (op) {
-    case OP_BREAK:
-        break_(mcu);
+    case OP_IJMP:
+        ijmp(mcu);
         return;
     case OP_ICALL:
         icall(mcu);
         return;
-    case OP_IJMP:
-        ijmp(mcu);
+    case OP_RET:
+        ret(mcu);
+        return;
+    case OP_RETI:
+        reti(mcu);
+        return;
+    case OP_BREAK:
+        break_(mcu);
         return;
     }
 
