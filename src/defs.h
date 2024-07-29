@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -33,6 +34,7 @@
 
 #define GET_BIT(X, N)    (((X) >> (N)) & 1)
 #define SET_BIT(X, N, V) (X = (X & ~(1 << (N))) | ((!!(V)) << (N)))
+#define PUT_BIT(X, N)    ((X) |= (1 << (N)))
 #define CLR_BIT(X, N)    (X &= ~(1 << (N)))
 
 #define TWO_COMP(X) (~(X) + 1)

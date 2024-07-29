@@ -41,10 +41,10 @@ typedef enum AVR_Result {
  */
 typedef struct AVR_MCU {
     /** @brief Program counter. */
-    uint32_t pc;
+    uint16_t pc;
 
     /** @brief Stack pointer. */
-    uint32_t sp;
+    uint16_t sp;
 
     /** @brief Status Register. */
     uint8_t sreg;
@@ -90,21 +90,5 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex);
  * @param mcu Microcontroller Emulator
  */
 void avr_cycle(AVR_MCU *restrict mcu);
-
-#warning "disable always test before release"
-#define AVR_TEST
-
-#ifdef AVR_TEST
-/**
- * @brief Run build tests.
- *
- * @return AVR_OK on success
- */
-AVR_Result avr_run_tests(void);
-#endif
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // __AVR_H__

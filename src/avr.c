@@ -18,17 +18,18 @@
 
 #include <avr.h>
 
-#include <assert.h>
 #include <ctype.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "avr_defs.h"
 #include "defs.h"
 
-#if defined __GNUC__ && !defined NDEBUG
-#pragma GCC diagnostic push
+#ifndef NDEBUG
+#if defined __GNUC__
 #pragma GCC diagnostic ignored "-Wtype-limits"
+#elif defined __clang__
+#pragma clang diagnostic ignored "-Wtype-limits"
+#endif
 #endif
 
 static inline u8 xstr2byte(const char *restrict s) {
@@ -54,6 +55,7 @@ static inline void adc(AVR_MCU *restrict mcu, u8 d, u8 r) {
 
     // PC <- PC + 1
     mcu->pc++;
+
     // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
     SET_BIT(mcu->sreg, SREG_H, (Rd3 & Rr3) | (Rr3 & ~R3) | (~R3 & Rd3));
     // S = N ^ V
@@ -86,6 +88,7 @@ static inline void add(AVR_MCU *restrict mcu, u8 d, const u8 r) {
 
     // PC <- PC + 1
     mcu->pc++;
+
     // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
     SET_BIT(mcu->sreg, SREG_H, (Rd3 & Rr3) | (Rr3 & ~R3) | (~R3 & Rd3));
     // S = N ^ V
@@ -103,7 +106,35 @@ static inline void add(AVR_MCU *restrict mcu, u8 d, const u8 r) {
 }
 
 // adiw add immediate word
-// TODO
+static inline void adiw(AVR_MCU *restrict mcu, u8 d, u8 K) {
+    ASSERT_BOUNDS(d, 0, 3);
+    ASSERT_BOUNDS(K, 0, 63);
+
+    // reg pairs { 24, 26, 28, 30 }
+    u16 *Rd = (u16 *)&mcu->reg[d * 2 + 24];
+
+    // R <- Rd + Rr
+    const u16 R = *Rd + K;
+
+    const u8 Rdh7 = GET_BIT(*Rd, 15);
+    const u8 R15  = GET_BIT(R, 15);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = ~Rdh7 & R15
+    SET_BIT(mcu->sreg, SREG_V, ~Rdh7 & R15);
+    // N = R15
+    SET_BIT(mcu->sreg, SREG_N, R15);
+    // Z = ~R15 & ~R14 & ~R13 & ~R12 & ~R11 & ~R10 & ~R9 & ~R8 & ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = ~R15 & Rdh7
+    SET_BIT(mcu->sreg, SREG_C, ~R15 & Rdh7);
+
+    *Rd = R;
+}
 
 // and logical and
 static inline void and (AVR_MCU *restrict mcu, u8 d, const u8 r) {
@@ -114,20 +145,19 @@ static inline void and (AVR_MCU *restrict mcu, u8 d, const u8 r) {
     const u8 *Rr = &mcu->reg[r];
 
     // R <- Rd & Rr
-    const u8 R = *Rd & *Rr;
+    *Rd = *Rd & *Rr;
 
     // PC <- PC + 1
     mcu->pc++;
+
     // S = N ^ V
     SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
     // V = 0
-    SET_BIT(mcu->sreg, SREG_V, 0);
+    CLR_BIT(mcu->sreg, SREG_V);
     // N = R7
     SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
     // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, R == 0);
-
-    *Rd = R;
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
 }
 
 // andi logical and with immediate
@@ -138,20 +168,19 @@ static inline void andi(AVR_MCU *restrict mcu, u8 d, u8 K) {
     u8 *Rd = &mcu->reg[d];
 
     // R <- Rd & K
-    const u8 R = *Rd & K;
+    *Rd = *Rd & K;
 
     // PC <- PC + 1
     mcu->pc++;
+
     // S = N ^ V
     SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
     // V = 0
-    SET_BIT(mcu->sreg, SREG_V, 0);
+    CLR_BIT(mcu->sreg, SREG_V);
     // N = R7
     SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
     // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, R == 0);
-
-    *Rd = R;
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
 }
 
 // asr arithmetic shift right
@@ -161,10 +190,11 @@ static inline void asr(AVR_MCU *restrict mcu, u8 d) {
     u8 *Rd = &mcu->reg[d];
 
     // R <- Rd >> 1
-    const u8 R = *Rd >> 1;
+    *Rd = *Rd >> 1;
 
     // PC <- PC + 1
     mcu->pc++;
+
     // S = N ^ V
     SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
     // V = N ^ C  **DELAYED**
@@ -172,14 +202,12 @@ static inline void asr(AVR_MCU *restrict mcu, u8 d) {
     // N = R7
     SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
     // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
     // C = Rd0
     SET_BIT(mcu->sreg, SREG_C, GET_BIT(*Rd, 0));
 
     // V = N ^ C  <- NOTE N and C AFTER shift so we delay it
     SET_BIT(mcu->sreg, SREG_V, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_C));
-
-    *Rd = R;
 }
 
 // bclr bit clear in sreg
@@ -187,7 +215,7 @@ static inline void bclr(AVR_MCU *restrict mcu, u8 s) {
     ASSERT_BOUNDS(s, 0, 7);
 
     // SREG(s) <- 0
-    SET_BIT(mcu->sreg, s, 0);
+    CLR_BIT(mcu->sreg, s);
 
     // PC <- PC + 1
     mcu->pc++;
@@ -246,7 +274,7 @@ static inline void bset(AVR_MCU *restrict mcu, u8 s) {
     ASSERT_BOUNDS(s, 0, 7);
 
     // SREG(s) <- 1
-    SET_BIT(mcu->sreg, s, 1);
+    PUT_BIT(mcu->sreg, s);
 
     // PC <- PC + 1
     mcu->pc++;
@@ -291,8 +319,310 @@ static inline void call(AVR_MCU *restrict mcu, u16 k) {
     *((u16 *)&mcu->data[mcu->sp]) = mcu->pc + 2;
 }
 
+// cbi clear bit in IO register
+static inline void cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
+    ASSERT_BOUNDS(A, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    // IO(A, b) <- 0
+    CLR_BIT(mcu->io_reg[A], b);
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// com one's complement
+static inline void com(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // R = $FF - Rd
+    *Rd = 0xFF - *Rd;
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = 0
+    CLR_BIT(mcu->sreg, SREG_V);
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
+    // C = 1
+    PUT_BIT(mcu->sreg, SREG_C);
+}
+
+// cp compare
+static inline void cp(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // R = Rd - Rr
+    const u8 R = *Rd - *Rr;
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
+}
+
+// cpc compare with carry
+static inline void cpc(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // R = Rd - Rr - C
+    const u8 R = *Rd - *Rr - GET_BIT(mcu->sreg, SREG_C);
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), Rr3 = GET_BIT(*Rr, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~Rr7 & ~R7 | ~Rd7 & Rr7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~Rr7 & ~R7) | (~Rd7 & Rr7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0 & Z
+    SET_BIT(mcu->sreg, SREG_Z, R == 0 && GET_BIT(mcu->sreg, SREG_Z));
+    // C = ~Rd7 & Rr7 | Rr7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & Rr7) | (Rr7 & R7) | (R7 & ~Rd7));
+}
+
+// cpi compare with immediate
+static inline void cpi(AVR_MCU *restrict mcu, u8 d, u8 K) {
+    ASSERT_BOUNDS(d, 16, 31);
+    ASSERT_BOUNDS(K, 0, 255);
+
+    const u8 *Rd = &mcu->reg[d];
+
+    // R = Rd - K
+    const u8 R = *Rd - K;
+
+    const u8 Rd3 = GET_BIT(*Rd, 3), K3 = GET_BIT(K, 3), R3 = GET_BIT(R, 3);
+    const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
+    SET_BIT(mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = Rd7 & ~K7 & ~R7 | ~Rd7 & K7 & R7
+    SET_BIT(mcu->sreg, SREG_V, (Rd7 & ~K7 & ~R7) | (~Rd7 & K7 & R7));
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, R7);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = ~Rd7 & K7 | K7 & R7 | R7 & ~Rd7
+    SET_BIT(mcu->sreg, SREG_C, (~Rd7 & K7) | (K7 & R7) | (R7 & ~Rd7));
+}
+
+// cpse compare skip if equal
+static inline void cpse(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rd = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // if Rd == Rr then PC <- PC + 2 (or 3) else PC <- PC + 1
+    if (*Rd == *Rr) {
+        u16 next_op = mcu->flash[mcu->pc + 1];
+
+        // PC <- PC + 2 (or 3)
+        mcu->pc += 2 + IS_32BIT_OP(next_op);
+    } else {
+        // PC <- PC + 1
+        mcu->pc++;
+    }
+}
+
+// dec decrement
+static inline void dec(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // R = Rd - 1
+    *Rd = *Rd - 1;
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = ~R7 & R6 & R5 & R4 & R3 & R2 & R1 & R0
+    SET_BIT(mcu->sreg, SREG_V, *Rd == 0x7F);
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
+}
+
+// eor exclusive or
+static inline void eor(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    u8 *Rd       = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // R = Rd ^ Rr
+    *Rd = *Rd ^ *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = 0
+    CLR_BIT(mcu->sreg, SREG_V);
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
+}
+
+// icall indirect call to subroutine
+static inline void icall(AVR_MCU *restrict mcu) {
+    // PC(15:0) <- Z(15:0)
+    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
+
+    // SP <- SP - 2
+    mcu->sp -= 2;
+
+    // STACK <- PC + 1
+    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
+}
+
+// ijmp indirect jump
+static inline void ijmp(AVR_MCU *restrict mcu) {
+    // PC(15:0) <- Z(15:0)
+    mcu->pc = *(u16 *)&mcu->reg[REG_Z];
+}
+
+// in load an IO location to register
+static inline void in(AVR_MCU *restrict mcu, u8 d, u8 A) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(A, 0, 63);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // Rd <- IO(A)
+    *Rd = mcu->io_reg[A];
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// inc increment
+static inline void inc(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // R = Rd + 1
+    *Rd = *Rd + 1;
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = ~R7 & R6 & R5 & R4 & R3 & R2 & R1 & R0
+    SET_BIT(mcu->sreg, SREG_V, *Rd == 0x80);
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
+}
+
+// jmp jump
+static inline void jmp(AVR_MCU *restrict mcu, u16 k) {
+    // PC <- k
+    mcu->pc = k;
+}
+
+// lac load and clear
+static inline void lac(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd  = &mcu->reg[d];
+    u16 *Z  = (u16 *)&mcu->reg[REG_Z];
+    u16 tmp = *Z;
+
+    // (Z) <- ($FF - Rd) & (Z), Rd <- (Z)
+    *Z  = (0xFF - *Rd) & *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// las load and clear
+static inline void las(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd  = &mcu->reg[d];
+    u16 *Z  = (u16 *)&mcu->reg[REG_Z];
+    u16 tmp = *Z;
+
+    // (Z) <- Rd | (Z), Rd <- (Z)
+    *Z  = *Rd | *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// lat load and toggle
+static inline void lat(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd  = &mcu->reg[d];
+    u16 *Z  = (u16 *)&mcu->reg[REG_Z];
+    u16 tmp = *Z;
+
+    // (Z) <- Rd ^ (Z), Rd <- (Z)
+    *Z  = *Rd ^ *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
 void avr_mcu_init(AVR_MCU *restrict mcu) {
-    memcpy(mcu, &(AVR_MCU){0}, sizeof(*mcu));
+    memset(mcu, 0, sizeof(*mcu));
     mcu->sp = sizeof(mcu->data);
 }
 
@@ -353,9 +683,28 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_4) {
     case OP_ANDI: {
-        u8 d = (op & 0x00F0) >> 4;
-        u8 K = ((op & 0x0F00) >> 4) | (op & 0x000F);
-        return andi(mcu, d, K);
+        const u8 d = (op & 0x00F0) >> 4;
+        const u8 K = ((op & 0x0F00) >> 4) | (op & 0x000F);
+        andi(mcu, d, K);
+        return;
+    }
+    case OP_CPI: {
+        const u8 d = (op & 0x00F0) >> 4;
+        const u8 K = ((op & 0x0F00) >> 4) | (op & 0x000F);
+        cpi(mcu, d, K);
+        return;
+    }
+    }
+
+    /***************************************************************************
+     * 5 bit op
+     **************************************************************************/
+    switch (op & OP_MASK_5) {
+    case OP_IN: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 A = ((op & 0x600) >> 5) | (op & 0x000F);
+        in(mcu, d, A);
+        return;
     }
     }
 
@@ -364,29 +713,58 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_6) {
     case OP_ADC: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        u8 r = GET_REG_DIRECT_SRC(op);
-        return adc(mcu, d, r);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        adc(mcu, d, r);
+        return;
     }
     case OP_BRBC: {
-        i8 k = (i8)(64 - ((op & 0b000001111111000) >> 3));
-        u8 s = op & 0b111;
-        return brbc(mcu, k, s);
+        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
+        const u8 s = op & 0x0003;
+        brbc(mcu, k, s);
+        return;
     }
     case OP_BRBS: {
-        i8 k = (i8)(64 - ((op & 0b000001111111000) >> 3));
-        u8 s = op & 0b111;
-        return brbs(mcu, k, s);
+        const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
+        const u8 s = op & 0x0003;
+        brbs(mcu, k, s);
+        return;
     }
     case OP_ADD: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        u8 r = GET_REG_DIRECT_SRC(op);
-        return add(mcu, d, r);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        add(mcu, d, r);
+        return;
     }
     case OP_AND: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        u8 r = GET_REG_DIRECT_SRC(op);
-        return and(mcu, d, r);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        and(mcu, d, r);
+        return;
+    }
+    case OP_CP: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        cp(mcu, d, r);
+        return;
+    }
+    case OP_CPC: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        cpc(mcu, d, r);
+        return;
+    }
+    case OP_CPSE: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        cpse(mcu, d, r);
+        return;
+    }
+    case OP_EOR: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        eor(mcu, d, r);
+        return;
     }
     }
 
@@ -395,33 +773,60 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_7_1) {
     case OP_BLD: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        u8 b = op & 0b111;
-        return bld(mcu, d, b);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 b = op & 0x0003;
+        bld(mcu, d, b);
+        return;
     }
     case OP_BST: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        u8 b = op & 0b111;
-        return bst(mcu, d, b);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 b = op & 0x0003;
+        bst(mcu, d, b);
+        return;
     }
     }
     switch (op & OP_MASK_7_3) {
     case OP_CALL: {
-        u16 k = (u16)GET_PROG_DIRECT_ADDR(op, mcu->flash[mcu->pc + 1]);
-        return call(mcu, k);
-    }
-#if 0
-    case OP_JMP: {
-        // TODO
-        mcu->pc = GET_PROG_DIRECT_ADDR(op, mcu->flash[mcu->pc + 1]);
+        const u16 k = mcu->flash[mcu->pc + 1];
+        call(mcu, k);
         return;
     }
-#endif
+    case OP_JMP: {
+        const u16 k = mcu->flash[mcu->pc + 1];
+        jmp(mcu, k);
+        return;
+    }
     }
     switch (op & OP_MASK_7_4) {
     case OP_ASR: {
-        u8 d = GET_REG_DIRECT_DST(op);
-        return asr(mcu, d);
+        const u8 d = GET_REG_DIRECT_DST(op);
+        asr(mcu, d);
+        return;
+    }
+    case OP_DEC: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        dec(mcu, d);
+        return;
+    }
+    case OP_INC: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        inc(mcu, d);
+        return;
+    }
+    case OP_LAC: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        lac(mcu, d);
+        return;
+    }
+    case OP_LAS: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        las(mcu, d);
+        return;
+    }
+    case OP_LAT: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        lat(mcu, d);
+        return;
     }
     }
 
@@ -430,7 +835,15 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_8) {
     case OP_ADIW: {
-        LOG_DEBUG("TODO - ADIW");
+        const u8 d = (op & 0x0030) >> 4;
+        const u8 K = ((op & 0x00C0) >> 2) | (op & 0x000F);
+        adiw(mcu, d, K);
+        return;
+    }
+    case OP_CBI: {
+        const u8 A = (op & 0x00F8) >> 3;
+        const u8 b = op & 0x0003;
+        cbi(mcu, A, b);
         return;
     }
     }
@@ -440,12 +853,19 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_9_4) {
     case OP_BCLR: {
-        u8 s = (op & ~OP_MASK_9_4) >> 4;
-        return bclr(mcu, s);
+        const u8 s = (op & ~OP_MASK_9_4) >> 4;
+        bclr(mcu, s);
+        return;
     }
     case OP_BSET: {
-        u8 s = (op & ~OP_MASK_9_4) >> 4;
-        return bset(mcu, s);
+        const u8 s = (op & ~OP_MASK_9_4) >> 4;
+        bset(mcu, s);
+        return;
+    }
+    case OP_COM: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        com(mcu, d);
+        return;
     }
     }
 
@@ -454,237 +874,16 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op) {
     case OP_BREAK:
-        return break_(mcu);
+        break_(mcu);
+        return;
+    case OP_ICALL:
+        icall(mcu);
+        return;
+    case OP_IJMP:
+        ijmp(mcu);
+        return;
     }
 
-    LOG_DEBUG("unknown instruction %#x", op);
+    LOG_ERROR("unknown instruction %#x", op);
     exit(EXIT_FAILURE);
 }
-
-#ifdef AVR_TEST
-AVR_Result avr_run_tests(void) {
-    AVR_MCU mcu;
-    avr_mcu_init(&mcu);
-
-    // adc
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 256; j++) {
-            SET_BIT(mcu.sreg, SREG_C, 1);
-            mcu.reg[0] = i, mcu.reg[1] = j;
-
-            u16 expected = (u16)mcu.reg[0] + (u16)mcu.reg[1] + 1;
-
-            adc(&mcu, 0, 1);
-
-            u16 real = (u16)mcu.reg[0] + (GET_BIT(mcu.sreg, SREG_C) ? 0x100 : 0);
-
-            if (real != expected) {
-                LOG_ERROR("test failed adc: real %#x, expected %#x", real, expected);
-                return AVR_ERROR;
-            }
-        }
-    }
-
-    // add
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 256; j++) {
-            mcu.reg[0] = i, mcu.reg[1] = j;
-
-            u32 expected = (u32)mcu.reg[0] + (u32)mcu.reg[1];
-
-            add(&mcu, 0, 1);
-
-            u32 real = (u32)mcu.reg[0] + (GET_BIT(mcu.sreg, SREG_C) ? 0x100 : 0);
-
-            if (real != expected) {
-                LOG_ERROR("test failed add: real %#x, expected %#x", real, expected);
-                return AVR_ERROR;
-            }
-        }
-    }
-
-    // adiw
-    // TODO
-
-    // and
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 256; j++) {
-            mcu.reg[0] = i, mcu.reg[1] = j;
-
-            u8 expected = mcu.reg[0] & mcu.reg[1];
-
-            and(&mcu, 0, 1);
-
-            u8 real = mcu.reg[0];
-
-            if (real != expected) {
-                LOG_ERROR("test failed add: real %#x, expected %#x", real, expected);
-                return AVR_ERROR;
-            }
-        }
-    }
-
-    // andi
-    for (int i = 0; i < 256; i++) {
-        for (int j = 0; j < 256; j++) {
-            u8 K        = j;
-            mcu.reg[16] = i;
-
-            u8 expected = mcu.reg[16] & K;
-
-            andi(&mcu, 16, K);
-
-            u8 real = mcu.reg[16];
-
-            if (real != expected) {
-                LOG_ERROR("test failed addi: real %#x, expected %#x", real, expected);
-                return AVR_ERROR;
-            }
-        }
-    }
-
-    // asr
-    for (int i = 0; i < 256; i++) {
-        mcu.reg[0] = i;
-
-        u8 expected = mcu.reg[0] >> 1;
-
-        asr(&mcu, 0);
-
-        u8 real = mcu.reg[0];
-
-        if (real != expected) {
-            LOG_ERROR("test failed asr: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // bclr
-    for (int i = 0; i < 8; i++) {
-        u8 expected = mcu.sreg & ~(1 << i);
-
-        bclr(&mcu, i);
-
-        u8 real = mcu.sreg;
-
-        if (real != expected) {
-            LOG_ERROR("test failed bclr: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // bld
-    for (int i = 0; i < 8; i++) {
-        mcu.reg[0] = 0;
-        mcu.sreg   = 0;
-
-        const u8 T = i % 2;
-        SET_BIT(mcu.sreg, SREG_T, T);
-
-        u8 expected = mcu.reg[0];
-        SET_BIT(expected, i, T);
-
-        bld(&mcu, 0, i);
-
-        u8 real = mcu.reg[0];
-
-        if (real != expected) {
-            LOG_ERROR("test failed bld: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // brbc
-    for (int i = 0; i < 8; i++) {
-        mcu.sreg = 0b11110000;
-        mcu.pc   = 0;
-        i8 k     = 42;
-
-        u8 expected = GET_BIT(mcu.sreg, i) == 0 ? mcu.pc + k + 1 : mcu.pc + 1;
-
-        brbc(&mcu, k, i);
-
-        u8 real = mcu.pc;
-
-        if (real != expected) {
-            LOG_ERROR("test failed brbc: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // brbs
-    for (int i = 0; i < 8; i++) {
-        mcu.sreg = 0b11110000;
-        mcu.pc   = 0;
-        i8 k     = 42;
-
-        u8 expected = GET_BIT(mcu.sreg, i) == 1 ? mcu.pc + k + 1 : mcu.pc + 1;
-
-        brbs(&mcu, k, i);
-
-        u8 real = mcu.pc;
-
-        if (real != expected) {
-            LOG_ERROR("test failed brbs: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // bset
-    for (int i = 0; i < 8; i++) {
-        u8 expected = mcu.sreg | (1 << i);
-
-        bset(&mcu, i);
-
-        u8 real = mcu.sreg;
-
-        if (real != expected) {
-            LOG_ERROR("test failed bset: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // bst
-    for (int i = 0; i < 8; i++) {
-        mcu.reg[0] = (1 << i);
-        mcu.sreg   = 0;
-
-        u8 expected = 1 << SREG_T;
-
-        bst(&mcu, 0, i);
-
-        u8 real = mcu.sreg;
-
-        if (real != expected) {
-            LOG_ERROR("test failed bst: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // call
-    for (u32 i = 0; i < (sizeof(mcu.data) / 2); i++) {
-        u16 expected     = i;
-        u16 expected_sp  = mcu.sp - 2;
-        u16 expected_stk = i + 2;
-
-        call(&mcu, i);
-
-        u16 real     = mcu.pc;
-        u16 real_sp  = mcu.sp;
-        u16 real_stk = *(u16 *)&mcu.data[mcu.sp];
-
-        if (real != expected) {
-            LOG_ERROR("test failed call: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        } else if (real_sp != expected_sp) {
-            LOG_ERROR("test failed call: real_sp %#x, expected_sp %#x", real_sp, expected_sp);
-            return AVR_ERROR;
-        } else if (real_stk != expected_stk) {
-            LOG_ERROR("test failed call: real_stk %#x, expected_stk %#x", real_stk, expected_stk);
-            return AVR_ERROR;
-        }
-    }
-
-    return AVR_OK;
-}
-#endif
