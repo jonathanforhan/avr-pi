@@ -30,6 +30,12 @@
 #define LOG_DEBUG(MSG, ...) (void)fprintf(stderr, "%s:%d DEBUG " MSG "\n", __func__, __LINE__, ##__VA_ARGS__)
 #endif
 
+#ifdef NDEBUG
+#define PRINT_DEBUG(...) (void)0
+#else
+#define PRINT_DEBUG(...) (void)printf(__VA_ARGS__)
+#endif
+
 // get Nth bit from X returns 0 or 1
 #define GET_BIT(X, N) (((X) >> (N)) & 1)
 

@@ -23,6 +23,7 @@
 #include <unistd.h>
 
 #include <avr.h>
+#include "avr_defs.h"
 #include "defs.h"
 
 #define MAX_PATH 256
@@ -68,6 +69,11 @@ int main(int argc, char *argv[]) {
     for (;;) {
         usleep(250000);
         avr_cycle(&mcu);
+        PRINT_DEBUG("\t SREG: CZNVSHTI ");
+        for (int i = 0; i < 8; i++) {
+            PRINT_DEBUG("%u", GET_BIT(mcu.sreg, i));
+        }
+        PRINT_DEBUG("\n");
     }
 
     return 0;
