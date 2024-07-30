@@ -710,15 +710,79 @@ static AVR_Result test_branch_instructions(void) {
     return AVR_OK;
 }
 
-static AVR_Result avr_run_tests(void) {
+static AVR_Result test_bit_and_bit_test_instructions(void) {
     AVR_MCU mcu;
     avr_mcu_init(&mcu);
+
+    // sbi
+    for (u16 i = 0; i < 8; i++) {
+        mcu.io_reg[0] = 0x00;
+
+        u8 expected = mcu.io_reg[0] | (1 << i);
+
+        sbi(&mcu, 0, i);
+
+        u8 real = mcu.io_reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed sbi: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // cbi
+    for (u16 i = 0; i < 8; i++) {
+        mcu.io_reg[0] = 0xFF;
+
+        u8 expected = mcu.io_reg[0] & ~(1 << i);
+
+        cbi(&mcu, 0, i);
+
+        u8 real = mcu.io_reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed cbi: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // lsr
+    for (u16 i = 0; i < 256; i++) {
+        mcu.reg[0] = i;
+
+        u8 expected = i >> 1;
+
+        lsr(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed lsr: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // ror
+    {
+        mcu.reg[0] = 0xFF;
+
+        u8 expected = 0xFF;
+
+        ror(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed ror: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
 
     // asr
     for (int i = 0; i < 256; i++) {
         mcu.reg[0] = i;
 
-        u8 expected = mcu.reg[0] >> 1;
+        u8 expected = ((i8)mcu.reg[0]) >> 1;
 
         asr(&mcu, 0);
 
@@ -726,6 +790,36 @@ static AVR_Result avr_run_tests(void) {
 
         if (real != expected) {
             LOG_ERROR("test failed asr: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // swap
+    {
+        mcu.reg[0] = 0xAB;
+
+        u8 expected = 0xBA;
+
+        swap(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed swap: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // bset
+    for (int i = 0; i < 8; i++) {
+        u8 expected = mcu.sreg | (1 << i);
+
+        bset(&mcu, i);
+
+        u8 real = mcu.sreg;
+
+        if (real != expected) {
+            LOG_ERROR("test failed bset: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
     }
@@ -740,6 +834,23 @@ static AVR_Result avr_run_tests(void) {
 
         if (real != expected) {
             LOG_ERROR("test failed bclr: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // bst
+    for (int i = 0; i < 8; i++) {
+        mcu.reg[0] = (1 << i);
+        mcu.sreg   = 0;
+
+        u8 expected = 1 << SREG_T;
+
+        bst(&mcu, 0, i);
+
+        u8 real = mcu.sreg;
+
+        if (real != expected) {
+            LOG_ERROR("test failed bst: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
     }
@@ -765,36 +876,16 @@ static AVR_Result avr_run_tests(void) {
         }
     }
 
-    // bset
-    for (int i = 0; i < 8; i++) {
-        u8 expected = mcu.sreg | (1 << i);
+    return AVR_OK;
+}
 
-        bset(&mcu, i);
+static AVR_Result test_data_transfer_instructions(void) {
+    return AVR_OK;
+}
 
-        u8 real = mcu.sreg;
-
-        if (real != expected) {
-            LOG_ERROR("test failed bset: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // bst
-    for (int i = 0; i < 8; i++) {
-        mcu.reg[0] = (1 << i);
-        mcu.sreg   = 0;
-
-        u8 expected = 1 << SREG_T;
-
-        bst(&mcu, 0, i);
-
-        u8 real = mcu.sreg;
-
-        if (real != expected) {
-            LOG_ERROR("test failed bst: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
+static AVR_Result avr_run_tests(void) {
+    AVR_MCU mcu;
+    avr_mcu_init(&mcu);
 
     // call
     for (u32 i = 0; i < (sizeof(mcu.data) / 2); i++) {
@@ -816,22 +907,6 @@ static AVR_Result avr_run_tests(void) {
             return AVR_ERROR;
         } else if (real_stk != expected_stk) {
             LOG_ERROR("test failed call: real_stk %#x, expected_stk %#x", real_stk, expected_stk);
-            return AVR_ERROR;
-        }
-    }
-
-    // cbi
-    for (int i = 0; i < 8; i++) {
-        mcu.io_reg[0] = 0xFF;
-
-        u8 expected = mcu.io_reg[0] & ~(1 << i);
-
-        cbi(&mcu, 0, i);
-
-        u8 real = mcu.io_reg[0];
-
-        if (real != expected) {
-            LOG_ERROR("test failed cbi: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
     }
@@ -893,6 +968,16 @@ int main(void) {
     }
 
     if (test_branch_instructions() != AVR_OK) {
+        printf("tests failed\n");
+        return -1;
+    }
+
+    if (test_bit_and_bit_test_instructions() != AVR_OK) {
+        printf("tests failed\n");
+        return -1;
+    }
+
+    if (test_data_transfer_instructions() != AVR_OK) {
         printf("tests failed\n");
         return -1;
     }

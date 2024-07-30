@@ -137,33 +137,33 @@
 #define OP_BRIE   0xF007 //  [6]  1111 00kk kkkk k111  (UNUSED)
 #define OP_BRID   0xF407 //  [6]  1111 01kk kkkk k111  (UNUSED)
 /* Bit and Bit-Test Instructions */
-#define OP_SBI    0x____
+#define OP_SBI    0x9A00 //  [8]  1001 1010 AAAA Abbb
 #define OP_CBI    0x9800 //  [8]  1001 1000 AAAA Abbb
-#define OP_LSL    0x____
-#define OP_LSR    0x____
-#define OP_ROL    0x____
-#define OP_ROS    0x____
+#define OP_LSL    0x0C00 //  [6]  0000 11dd dddd dddd  (UNUSED)
+#define OP_LSR    0x9406 //  [7]  1001 010d dddd 0110
+#define OP_ROL    0x1C00 //  [6]  0001 11dd dddd dddd  (UNUSED)
+#define OP_ROR    0x9407 //  [7]  1001 010d dddd 0111
 #define OP_ASR    0x9405 //  [7]  1001 010d dddd 0101
-#define OP_SWAP   0x____
+#define OP_SWAP   0x9402 //  [7]  1001 010d dddd 0010
 #define OP_BSET   0x9408 //  [9]  1001 0100 0sss 1000
 #define OP_BCLR   0x9488 //  [9]  1001 0100 1sss 1000
 #define OP_BST    0xFA00 //  [7]  1111 101d dddd 0bbb
 #define OP_BLD    0xF800 //  [7]  1111 100d dddd 0bbb
-#define OP_SEC    0x____
+#define OP_SEC    0x9408 // [16]  1001 0100 0000 1000  (UNUSED)
 #define OP_CLC    0x9488 // [16]  1001 0100 1000 1000  (UNUSED)
-#define OP_SEN    0x____
+#define OP_SEN    0x9428 // [16]  1001 0100 0010 1000  (UNUSED)
 #define OP_CLN    0x94A8 // [16]  1001 0100 1010 1000  (UNUSED)
-#define OP_SEZ    0x____
+#define OP_SEZ    0x9418 // [16]  1001 0100 0001 1000  (UNUSED)
 #define OP_CLZ    0x9498 // [16]  1001 0100 1001 1000  (UNUSED)
-#define OP_SEI    0x____
+#define OP_SEI    0x9478 // [16]  1001 0100 0111 1000  (UNUSED)
 #define OP_CLI    0x94F8 // [16]  1001 0100 1111 1000  (UNUSED)
-#define OP_SES    0x____
+#define OP_SES    0x9448 // [16]  1001 0100 0100 1000  (UNUSED)
 #define OP_CLS    0x94C8 // [16]  1001 0100 1100 1000  (UNUSED)
-#define OP_SEV    0x____
+#define OP_SEV    0x9468 // [16]  1001 0100 0110 1000  (UNUSED)
 #define OP_CLV    0x94B8 // [16]  1001 0100 1011 1000  (UNUSED)
-#define OP_SET    0x____
+#define OP_SET    0x9438 // [16]  1001 0100 0011 1000  (UNUSED)
 #define OP_CLT    0x94E8 // [16]  1001 0100 1110 1000  (UNUSED)
-#define OP_SEH    0x____
+#define OP_SEH    0x9458 // [16]  1001 0100 0101 1000  (UNUSED)
 #define OP_CLH    0x94D8 // [16]  1001 0100 1101 1000  (UNUSED)
 /* Data Transfer Instructions */
 #define OP_MOV    0x____

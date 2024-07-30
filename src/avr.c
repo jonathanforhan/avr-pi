@@ -961,7 +961,7 @@ static inline void brbs(AVR_MCU *restrict mcu, i8 k, u8 s) {
     mcu->pc += GET_BIT(mcu->sreg, s) == 1 ? k + 1 : 1;
 }
 
-// brbc branch if bit in sreg is cleared
+// brbc - branch if bit in sreg is cleared
 static inline void brbc(AVR_MCU *restrict mcu, i8 k, u8 s) {
     k = I7_TO_I16(k);
 
@@ -973,14 +973,67 @@ static inline void brbc(AVR_MCU *restrict mcu, i8 k, u8 s) {
     mcu->pc += GET_BIT(mcu->sreg, s) == 0 ? k + 1 : 1;
 }
 
-// asr arithmetic shift right
-static inline void asr(AVR_MCU *restrict mcu, u8 d) {
+// sbi - set bit in io register
+static inline void sbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
+    ASSERT_BOUNDS(A, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    // IO(A,b) = 1
+    PUT_BIT(mcu->io_reg[A], b);
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// cbi - clear bit in io register
+static inline void cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
+    ASSERT_BOUNDS(A, 0, 31);
+    ASSERT_BOUNDS(b, 0, 7);
+
+    // IO(A,b) = 0
+    CLR_BIT(mcu->io_reg[A], b);
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// lsr - logical shift right
+static inline void lsr(AVR_MCU *restrict mcu, u8 d) {
     ASSERT_BOUNDS(d, 0, 31);
 
     u8 *Rd = &mcu->reg[d];
 
     // R <- Rd >> 1
-    *Rd = *Rd >> 1;
+    const u8 R = *Rd >> 1;
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = N ^ C  **DELAYED**
+    /* see NOTE */
+    // N = 0
+    CLR_BIT(mcu->sreg, SREG_N);
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = Rd0
+    SET_BIT(mcu->sreg, SREG_C, GET_BIT(*Rd, 0));
+
+    // V = N ^ C  <- NOTE N and C AFTER shift so we delay it
+    SET_BIT(mcu->sreg, SREG_V, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_C));
+
+    *Rd = R;
+}
+
+// ror - rotate right through carry
+static inline void ror(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // R <- C -> Rd >> 1
+    const u8 R = (*Rd >> 1) | (GET_BIT(mcu->sreg, SREG_C) << 7);
 
     // PC <- PC + 1
     mcu->pc++;
@@ -990,56 +1043,63 @@ static inline void asr(AVR_MCU *restrict mcu, u8 d) {
     // V = N ^ C  **DELAYED**
     /* see NOTE */
     // N = R7
-    SET_BIT(mcu->sreg, SREG_N, GET_BIT(*Rd, 7));
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(R, 7));
     // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
-    SET_BIT(mcu->sreg, SREG_Z, *Rd == 0);
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
     // C = Rd0
     SET_BIT(mcu->sreg, SREG_C, GET_BIT(*Rd, 0));
 
     // V = N ^ C  <- NOTE N and C AFTER shift so we delay it
     SET_BIT(mcu->sreg, SREG_V, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_C));
+
+    *Rd = R;
 }
 
-// bclr bit clear in sreg
-static inline void bclr(AVR_MCU *restrict mcu, u8 s) {
-    ASSERT_BOUNDS(s, 0, 7);
-
-    // SREG(s) <- 0
-    CLR_BIT(mcu->sreg, s);
-
-    // PC <- PC + 1
-    mcu->pc++;
-
-    // I = 0 if s == 7; unchanged otherwise.
-    // T = 0 if s == 6; unchanged otherwise.
-    // H = 0 if s == 5; unchanged otherwise.
-    // S = 0 if s == 4; unchanged otherwise.
-    // V = 0 if s == 3; unchanged otherwise.
-    // N = 0 if s == 2; unchanged otherwise.
-    // Z = 0 if s == 1; unchanged otherwise.
-    // C = 0 if s == 0; unchanged otherwise.
-}
-
-// bld bit load from the T flag in sreg to a bit in register
-static inline void bld(AVR_MCU *restrict mcu, u8 d, u8 b) {
+// asr - arithmetic shift right
+static inline void asr(AVR_MCU *restrict mcu, u8 d) {
     ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(b, 0, 7);
 
     u8 *Rd = &mcu->reg[d];
 
-    // Rd(b) <- T
-    SET_BIT(*Rd, b, GET_BIT(mcu->sreg, SREG_T));
+    // R <- Rd >> 1
+    const u8 R = ((i8)*Rd) >> 1;
 
     // PC <- PC + 1
     mcu->pc++;
+
+    // S = N ^ V
+    SET_BIT(mcu->sreg, SREG_S, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_V));
+    // V = N ^ C  **DELAYED**
+    /* see NOTE */
+    // N = R7
+    SET_BIT(mcu->sreg, SREG_N, GET_BIT(R, 7));
+    // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0
+    SET_BIT(mcu->sreg, SREG_Z, R == 0);
+    // C = Rd0
+    SET_BIT(mcu->sreg, SREG_C, GET_BIT(*Rd, 0));
+
+    // V = N ^ C  <- NOTE N and C AFTER shift so we delay it
+    SET_BIT(mcu->sreg, SREG_V, GET_BIT(mcu->sreg, SREG_N) ^ GET_BIT(mcu->sreg, SREG_C));
+
+    *Rd = R;
 }
 
-// break break
-static inline void break_(AVR_MCU *restrict mcu) {
+// swap - swap nibbles
+static inline void swap(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // R(7:4) = Rd(3:0), R(3:0) = Rd(7:4)
+    const u8 R = (*Rd >> 4) | (*Rd << 4);
+
+    // PC <- PC + 1
     mcu->pc++;
+
+    *Rd = R;
 }
 
-// bset bit set in sreg
+// bset - bit set in sreg
 static inline void bset(AVR_MCU *restrict mcu, u8 s) {
     ASSERT_BOUNDS(s, 0, 7);
 
@@ -1059,7 +1119,27 @@ static inline void bset(AVR_MCU *restrict mcu, u8 s) {
     // C = 1 if s == 0; unchanged otherwise.
 }
 
-// bst bit store from bit in register to T flag in sreg
+// bclr - bit clear in sreg
+static inline void bclr(AVR_MCU *restrict mcu, u8 s) {
+    ASSERT_BOUNDS(s, 0, 7);
+
+    // SREG(s) <- 0
+    CLR_BIT(mcu->sreg, s);
+
+    // PC <- PC + 1
+    mcu->pc++;
+
+    // I = 0 if s == 7; unchanged otherwise.
+    // T = 0 if s == 6; unchanged otherwise.
+    // H = 0 if s == 5; unchanged otherwise.
+    // S = 0 if s == 4; unchanged otherwise.
+    // V = 0 if s == 3; unchanged otherwise.
+    // N = 0 if s == 2; unchanged otherwise.
+    // Z = 0 if s == 1; unchanged otherwise.
+    // C = 0 if s == 0; unchanged otherwise.
+}
+
+// bst - bit store from bit in register to T flag in sreg
 static inline void bst(AVR_MCU *restrict mcu, u8 d, u8 b) {
     ASSERT_BOUNDS(d, 0, 31);
     ASSERT_BOUNDS(b, 0, 7);
@@ -1075,15 +1155,22 @@ static inline void bst(AVR_MCU *restrict mcu, u8 d, u8 b) {
     // T = 0 if bit b in Rd is cleared. Set to 1 otherwise.
 }
 
-// cbi clear bit in IO register
-static inline void cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
-    ASSERT_BOUNDS(A, 0, 31);
+// bld - bit load from the T flag in sreg to a bit in register
+static inline void bld(AVR_MCU *restrict mcu, u8 d, u8 b) {
+    ASSERT_BOUNDS(d, 0, 31);
     ASSERT_BOUNDS(b, 0, 7);
 
-    // IO(A, b) <- 0
-    CLR_BIT(mcu->io_reg[A], b);
+    u8 *Rd = &mcu->reg[d];
+
+    // Rd(b) <- T
+    SET_BIT(*Rd, b, GET_BIT(mcu->sreg, SREG_T));
 
     // PC <- PC + 1
+    mcu->pc++;
+}
+
+// break break
+static inline void break_(AVR_MCU *restrict mcu) {
     mcu->pc++;
 }
 
@@ -1473,16 +1560,16 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         sbrs(mcu, r, b);
         return;
     }
-    case OP_BLD: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 b = op & 0x0003;
-        bld(mcu, d, b);
-        return;
-    }
     case OP_BST: {
         const u8 d = GET_REG_DIRECT_DST(op);
         const u8 b = op & 0x0003;
         bst(mcu, d, b);
+        return;
+    }
+    case OP_BLD: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 b = op & 0x0003;
+        bld(mcu, d, b);
         return;
     }
     }
@@ -1516,9 +1603,24 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         dec(mcu, d);
         return;
     }
+    case OP_LSR: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        lsr(mcu, d);
+        return;
+    }
+    case OP_ROR: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        ror(mcu, d);
+        return;
+    }
     case OP_ASR: {
         const u8 d = GET_REG_DIRECT_DST(op);
         asr(mcu, d);
+        return;
+    }
+    case OP_SWAP: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        swap(mcu, d);
         return;
     }
     case OP_LAC: {
@@ -1623,6 +1725,12 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         sbis(mcu, A, b);
         return;
     }
+    case OP_SBI: {
+        const u8 A = (op & 0x00F8) >> 3;
+        const u8 b = op & 0x0003;
+        sbi(mcu, A, b);
+        return;
+    }
     case OP_CBI: {
         const u8 A = (op & 0x00F8) >> 3;
         const u8 b = op & 0x0003;
@@ -1675,14 +1783,14 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         com(mcu, d);
         return;
     }
-    case OP_BCLR: {
-        const u8 s = (op & ~OP_MASK_9_4) >> 4;
-        bclr(mcu, s);
+    case OP_BSET: {
+        const u8 s = (op & 0x0070) >> 4;
+        bset(mcu, s);
         return;
     }
-    case OP_BSET: {
-        const u8 s = (op & ~OP_MASK_9_4) >> 4;
-        bset(mcu, s);
+    case OP_BCLR: {
+        const u8 s = (op & 0x0070) >> 4;
+        bclr(mcu, s);
         return;
     }
     }
