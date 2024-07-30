@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
     close(fd);
     fd = -1;
 
-    PRINT_DEBUG("%s\n", buf);
+    // PRINT_DEBUG("%s\n", buf);
 
     avr_mcu_init(&mcu);
 
