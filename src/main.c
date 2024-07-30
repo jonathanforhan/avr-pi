@@ -20,34 +20,65 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <avr.h>
-#include "avr_defs.h"
 #include "defs.h"
+
+#define VERSION "0.0.0"
 
 #define MAX_PATH 256
 
-static char buf[512 * 1024];
+static void print_version(void) {
+    printf("avr-pi v%s\n", VERSION);
+}
+
+static void print_help(void) {
+    printf(
+        "avr-pi usage:\n"
+        "\tavr-pi --version \tGet avr-pi version info.\n"
+        "\tavr-pi --help    \tGet avr-pi help.\n"
+        "\tavr-pi {file}.hex\tExecute a compiled AVR hex file.\n");
+}
 
 int main(int argc, char *argv[]) {
     int fd = -1;
+    struct stat st;
+    char *buf = NULL;
     AVR_MCU mcu;
 
-    avr_mcu_init(&mcu);
-
-    if (argc < 2 || strnlen(argv[1], MAX_PATH) < 5 || strcasecmp(strrchr(argv[1], '.'), ".hex") != 0) {
-        LOG_ERROR("invalid command");
+    if (argc < 2) {
+        goto err;
+    } else if (strncmp(argv[1], "--help", 6) == 0) {
+        print_help();
+        return 0;
+    } else if (strncmp(argv[1], "--version", 9) == 0) {
+        print_version();
+        return 0;
+    } else if (strnlen(argv[1], MAX_PATH) <= 4 || strcasecmp(strrchr(argv[1], '.'), ".hex") != 0) {
+        LOG_ERROR("invalid hex file");
         goto err;
     }
 
     fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
-        LOG_ERROR("invalid filepath %s", argv[1]);
+        LOG_ERROR("could not read file %s", argv[1]);
         goto err;
     }
 
-    switch (read(fd, buf, sizeof(buf))) {
+    if (fstat(fd, &st) < 0) {
+        LOG_ERROR("could not read file %s", argv[1]);
+        goto err;
+    }
+
+    buf = malloc(st.st_size + 1); // +1 NULL byte
+    if (buf == NULL) {
+        LOG_ERROR("allocation failure");
+        goto err;
+    }
+
+    switch (read(fd, buf, st.st_size)) {
     case -1:
         LOG_ERROR("could not read file %s", argv[1]);
         goto err;
@@ -55,16 +86,23 @@ int main(int argc, char *argv[]) {
         LOG_ERROR("file is empty %s", argv[1]);
         goto err;
     default:
-        break;
+        buf[st.st_size] = '\0';
     }
 
-    buf[sizeof(buf) - 1] = 0;
-    printf("%s", buf);
+    close(fd);
+    fd = -1;
+
+    PRINT_DEBUG("%s\n", buf);
+
+    avr_mcu_init(&mcu);
 
     if (avr_program(&mcu, buf) != AVR_OK) {
         LOG_ERROR("failed to write program to flash");
         goto err;
     }
+
+    free(buf);
+    buf = NULL;
 
     for (;;) {
         usleep(250000);
@@ -80,10 +118,7 @@ int main(int argc, char *argv[]) {
 
 err:
     close(fd);
-
-    fprintf(stderr,
-            "\navr-pi usage:\n"
-            "\tavr-pi {file}.hex\n");
-
-    exit(-1);
+    free(buf);
+    print_help();
+    return -1;
 }

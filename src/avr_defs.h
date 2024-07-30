@@ -190,7 +190,7 @@
 #define OP_ST_Z_PREDEC  0x9202 //  [7]  1001 001r rrrr 0010
 #define OP_STD_Y        0x8208 //  [*]  10q0 qq1r rrrr 1qqq
 #define OP_STD_Z        0x8200 //  [*]  10q0 qq1r rrrr 0qqq
-#define OP_STS          0x9200 //  [7]  1001 001d dddd 0000
+#define OP_STS          0x9200 //  [7]  1001 001d dddd 0000  kkkk kkkk kkkk kkkk
 #define OP_LPM_R0       0x95C8 // [16]  1001 0101 1100 1000
 #define OP_LPM          0x9004 //  [7]  1001 0ddd dddd 0100
 #define OP_LPM_POSTINC  0x9005 //  [7]  1001 0ddd dddd 0101
