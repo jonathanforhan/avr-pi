@@ -200,9 +200,9 @@
 #define OP_PUSH         0x920F //  [7]  1001 001d dddd 1111
 #define OP_POP          0x900F //  [7]  1001 000d dddd 1111
 /* MCU Control Instructions */
-#define OP_NOP          0x____
-#define OP_SLEEP        0x____
-#define OP_WDR          0x____
+#define OP_NOP          0x0000 // [16]  0000 0000 0000 0000
+#define OP_SLEEP        0x9588 // [16]  1001 0101 1000 1000
+#define OP_WDR          0x95A8 // [16]  1001 0101 1010 1000
 #define OP_BREAK        0x9598 // [16]  1001 0101 1001 1000
 
 /* Extensions (not used by ATmega328P) */

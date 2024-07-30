@@ -1533,56 +1533,25 @@ static inline void pop(AVR_MCU *restrict mcu, u8 d) {
     mcu->pc++;
 }
 
+// nop
+static inline void nop(AVR_MCU *restrict mcu) {
+    mcu->pc++;
+}
+
+// sleep
+static inline void sleep(AVR_MCU *restrict mcu) {
+    // TODO maybe
+    mcu->pc++;
+}
+
+// wdr
+static inline void wdr(AVR_MCU *restrict mcu) {
+    // TODO maybe
+    mcu->pc++;
+}
+
 // break break
 static inline void break_(AVR_MCU *restrict mcu) {
-    mcu->pc++;
-}
-
-// lac load and clear
-static inline void lac(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- ($FF - Rd) & (Z), Rd <- (Z)
-    *Z  = (0xFF - *Rd) & *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
-    mcu->pc++;
-}
-
-// las load and clear
-static inline void las(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- Rd | (Z), Rd <- (Z)
-    *Z  = *Rd | *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
-    mcu->pc++;
-}
-
-// lat load and toggle
-static inline void lat(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- Rd ^ (Z), Rd <- (Z)
-    *Z  = *Rd ^ *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
     mcu->pc++;
 }
 
@@ -1887,21 +1856,6 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         swap(mcu, d);
         return;
     }
-    case OP_LAC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        lac(mcu, d);
-        return;
-    }
-    case OP_LAS: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        las(mcu, d);
-        return;
-    }
-    case OP_LAT: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        lat(mcu, d);
-        return;
-    }
     case OP_LD_X: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_x(mcu, d);
@@ -2157,6 +2111,15 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         return;
     case OP_SPM:
         spm(mcu);
+        return;
+    case OP_NOP:
+        nop(mcu);
+        return;
+    case OP_SLEEP:
+        sleep(mcu);
+        return;
+    case OP_WDR:
+        wdr(mcu);
         return;
     case OP_BREAK:
         break_(mcu);
