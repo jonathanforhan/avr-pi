@@ -708,10 +708,10 @@ static inline void rcall(AVR_MCU *restrict mcu, i16 k) {
     ASSERT_BOUNDS(k, -2048, 2047);
 
     // STACK <- PC + 1
-    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
+    *(u16 *)&mcu->sram[*mcu->sp] = mcu->pc + 1;
 
     // SP <- SP - 2
-    mcu->sp -= 2;
+    *mcu->sp -= 2;
 
     // PC <- PC + k + 1
     mcu->pc += k + 1;
@@ -720,10 +720,10 @@ static inline void rcall(AVR_MCU *restrict mcu, i16 k) {
 // icall indirect call to subroutine
 static inline void icall(AVR_MCU *restrict mcu) {
     // STACK <- PC + 1
-    *(u16 *)&mcu->data[mcu->sp] = mcu->pc + 1;
+    *(u16 *)&mcu->sram[*mcu->sp] = mcu->pc + 1;
 
     // SP <- SP - 2
-    mcu->sp -= 2;
+    *mcu->sp -= 2;
 
     // PC(15:0) <- Z(15:0)
     mcu->pc = *(u16 *)&mcu->reg[REG_Z];
@@ -734,10 +734,10 @@ static inline void call(AVR_MCU *restrict mcu, u16 k) {
     ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
 
     // STACK <- PC + 2
-    *((u16 *)&mcu->data[mcu->sp]) = mcu->pc + 2;
+    *((u16 *)&mcu->sram[*mcu->sp]) = mcu->pc + 2;
 
     // SP <- PC - 2
-    mcu->sp -= 2;
+    *mcu->sp -= 2;
 
     // PC <- k
     mcu->pc = k;
@@ -746,19 +746,19 @@ static inline void call(AVR_MCU *restrict mcu, u16 k) {
 // ret - return from subroutine
 static inline void ret(AVR_MCU *restrict mcu) {
     // SP <- PC + 2
-    mcu->sp += 2;
+    *mcu->sp += 2;
 
     // PC(15:0) <- STACK
-    mcu->pc = *((u16 *)&mcu->data[mcu->sp]);
+    mcu->pc = *((u16 *)&mcu->sram[*mcu->sp]);
 }
 
 // reti - return from interrupt
 static inline void reti(AVR_MCU *restrict mcu) {
     // SP <- PC + 2
-    mcu->sp += 2;
+    *mcu->sp += 2;
 
     // PC(15:0) <- STACK
-    mcu->pc = *((u16 *)&mcu->data[mcu->sp]);
+    mcu->pc = *((u16 *)&mcu->sram[*mcu->sp]);
 
     // I = 1
     PUT_BIT(mcu->sreg, SREG_I);
@@ -1169,74 +1169,54 @@ static inline void bld(AVR_MCU *restrict mcu, u8 d, u8 b) {
     mcu->pc++;
 }
 
-// break break
-static inline void break_(AVR_MCU *restrict mcu) {
+// mov - copy register
+static inline void mov(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(r, 0, 31);
+
+    u8 *Rd       = &mcu->reg[d];
+    const u8 *Rr = &mcu->reg[r];
+
+    // Rd <- Rr
+    *Rd = *Rr;
+
+    // PC <- PC + 1
     mcu->pc++;
 }
 
-// in load an IO location to register
-static inline void in(AVR_MCU *restrict mcu, u8 d, u8 A) {
-    ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(A, 0, 63);
+// movw - copy register word
+static inline void movw(AVR_MCU *restrict mcu, u8 d, u8 r) {
+    d *= 2;
+    r *= 2;
+    ASSERT_BOUNDS(d, 0, 30);
+    ASSERT_BOUNDS(r, 0, 30);
+
+    u16 *Rd       = (u16 *)&mcu->reg[d];
+    const u16 *Rr = (u16 *)&mcu->reg[r];
+
+    // Rd <- Rr
+    *Rd = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// ldi - load immediate
+static inline void ldi(AVR_MCU *restrict mcu, u8 d, u8 K) {
+    d += 16;
+    ASSERT_BOUNDS(d, 16, 31);
+    ASSERT_BOUNDS(d, 0, 255);
 
     u8 *Rd = &mcu->reg[d];
 
-    // Rd <- IO(A)
-    *Rd = mcu->io_reg[A];
+    // Rd <- K
+    *Rd = K;
 
     // PC <- PC + 1
     mcu->pc++;
 }
 
-// lac load and clear
-static inline void lac(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- ($FF - Rd) & (Z), Rd <- (Z)
-    *Z  = (0xFF - *Rd) & *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
-    mcu->pc++;
-}
-
-// las load and clear
-static inline void las(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- Rd | (Z), Rd <- (Z)
-    *Z  = *Rd | *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
-    mcu->pc++;
-}
-
-// lat load and toggle
-static inline void lat(AVR_MCU *restrict mcu, u8 d) {
-    ASSERT_BOUNDS(d, 0, 31);
-
-    u8 *Rd        = &mcu->reg[d];
-    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
-    const u16 tmp = *Z;
-
-    // (Z) <- Rd ^ (Z), Rd <- (Z)
-    *Z  = *Rd ^ *Z;
-    *Rd = tmp;
-
-    // PC <- PC + 1
-    mcu->pc++;
-}
-
-// ld load indirect from data space to register using index X
+// ld - load indirect from data space to register using index X
 static inline void ld_x(AVR_MCU *restrict mcu, u8 d) {
     ASSERT_BOUNDS(d, 0, 31);
 
@@ -1306,25 +1286,39 @@ static inline void ld_z_predec(AVR_MCU *restrict mcu, u8 d) {
     ld_z(mcu, d);
 }
 
-// ldi load immediate
-static inline void ldi(AVR_MCU *restrict mcu, u8 d, u8 K) {
-    d += 16;
-    ASSERT_BOUNDS(d, 16, 31);
-    ASSERT_BOUNDS(d, 0, 255);
+// ldd
+static inline void ldd_y(AVR_MCU *restrict mcu, u8 d, u8 q) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(q, 0, 63);
 
-    u8 *Rd = &mcu->reg[d];
+    u8 *Rd      = &mcu->reg[d];
+    const u16 Y = *(u16 *)&mcu->reg[REG_Y + q];
 
-    // Rd <- K
-    *Rd = K;
+    // Rd <- (Y)
+    *Rd = mcu->data[Y];
 
     // PC <- PC + 1
     mcu->pc++;
 }
 
-// lds load direct from data space
+static inline void ldd_z(AVR_MCU *restrict mcu, u8 d, u8 q) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(q, 0, 63);
+
+    u8 *Rd      = &mcu->reg[d];
+    const u16 Z = *(u16 *)&mcu->reg[REG_Z + q];
+
+    // Rd <- (Z)
+    *Rd = mcu->data[Z];
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// lds - load direct from data space
 static inline void lds(AVR_MCU *restrict mcu, u8 d, u16 k) {
     ASSERT_BOUNDS(d, 0, 31);
-    ASSERT_BOUNDS(k, 0, 65535);
+    ASSERT_BOUNDS(k, 0, sizeof(mcu->data) - 1);
 
     u8 *Rd = &mcu->reg[d];
 
@@ -1335,13 +1329,271 @@ static inline void lds(AVR_MCU *restrict mcu, u8 d, u16 k) {
     mcu->pc += 2;
 }
 
+// st - store indirect from register to data space using index X
+static inline void st_x(AVR_MCU *restrict mcu, u8 r) {
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rr = &mcu->reg[r];
+    const u16 X  = *(u16 *)&mcu->reg[REG_X];
+
+    // (X) <- Rr
+    mcu->data[X] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+static inline void st_x_postinc(AVR_MCU *restrict mcu, u8 r) {
+    st_x(mcu, r);
+    (*(u16 *)&mcu->reg[REG_X])++;
+}
+
+static inline void st_x_predec(AVR_MCU *restrict mcu, u8 r) {
+    (*(u16 *)&mcu->reg[REG_X])--;
+    st_x(mcu, r);
+}
+
+static inline void st_y(AVR_MCU *restrict mcu, u8 r) {
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rr = &mcu->reg[r];
+    const u16 Y  = *(u16 *)&mcu->reg[REG_Y];
+
+    // (Y) <- Rr
+    mcu->data[Y] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+static inline void st_y_postinc(AVR_MCU *restrict mcu, u8 r) {
+    st_y(mcu, r);
+    (*(u16 *)&mcu->reg[REG_Y])++;
+}
+
+static inline void st_y_predec(AVR_MCU *restrict mcu, u8 r) {
+    (*(u16 *)&mcu->reg[REG_Y])--;
+    st_y(mcu, r);
+}
+
+static inline void st_z(AVR_MCU *restrict mcu, u8 r) {
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rr = &mcu->reg[r];
+    const u16 Z  = *(u16 *)&mcu->reg[REG_Z];
+
+    // (Z) <- Rr
+    mcu->data[Z] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+static inline void st_z_postinc(AVR_MCU *restrict mcu, u8 r) {
+    st_z(mcu, r);
+    (*(u16 *)&mcu->reg[REG_Z])++;
+}
+
+static inline void st_z_predec(AVR_MCU *restrict mcu, u8 r) {
+    (*(u16 *)&mcu->reg[REG_Z])--;
+    st_z(mcu, r);
+}
+
+// std
+static inline void std_y(AVR_MCU *restrict mcu, u8 r, u8 q) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(q, 0, 63);
+
+    const u8 *Rr = &mcu->reg[r];
+    const u16 Y  = *(u16 *)&mcu->reg[REG_Y + q];
+
+    // (Y) <- Rr
+    mcu->data[Y] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+static inline void std_z(AVR_MCU *restrict mcu, u8 r, u8 q) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(q, 0, 63);
+
+    const u8 *Rr = &mcu->reg[r];
+    const u16 Z  = *(u16 *)&mcu->reg[REG_Z + q];
+
+    // (Z) <- Rr
+    mcu->data[Z] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// sts - store direct to data space
+static inline void sts(AVR_MCU *restrict mcu, u8 r, u16 k) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(k, 0, sizeof(mcu->data) - 1);
+
+    const u8 *Rr = &mcu->reg[r];
+
+    // (k) <- Rr
+    mcu->data[k] = *Rr;
+
+    // PC <- PC + 2
+    mcu->pc += 2;
+}
+
+// lpm - load program memory
+static inline void lpm(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd      = &mcu->reg[d];
+    const u16 Z = *(u16 *)&mcu->reg[REG_Z];
+
+    // Rd <- (Z)
+    *Rd = mcu->data[Z];
+
+    // PC <- PC + 1
+    mcu->pc += 1;
+}
+
+static inline void lpm_postinc(AVR_MCU *restrict mcu, u8 d) {
+    lpm(mcu, d);
+    (*(u16 *)&mcu->reg[REG_Z])++;
+}
+
+// spm - store program memory
+static inline void spm(AVR_MCU *restrict mcu) {
+    const u16 *Rr = (u16 *)&mcu->reg[0];
+    const u16 Z   = *(u16 *)&mcu->reg[REG_Z];
+
+    // (Z) <- Rr
+    *(u16 *)&mcu->data[Z] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc += 1;
+}
+
+// in - load an io location to register
+static inline void in(AVR_MCU *restrict mcu, u8 d, u8 A) {
+    ASSERT_BOUNDS(d, 0, 31);
+    ASSERT_BOUNDS(A, 0, 63);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // Rd <- IO(A)
+    *Rd = mcu->io_reg[A];
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// out - store register to io location
+static inline void out(AVR_MCU *restrict mcu, u8 r, u8 A) {
+    ASSERT_BOUNDS(r, 0, 31);
+    ASSERT_BOUNDS(A, 0, 63);
+
+    const u8 *Rr = &mcu->reg[r];
+
+    // IO(A) <- Rr
+    mcu->io_reg[A] = *Rr;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// push - push register on stack
+static inline void push(AVR_MCU *restrict mcu, u8 r) {
+    ASSERT_BOUNDS(r, 0, 31);
+
+    const u8 *Rr = &mcu->reg[r];
+
+    // STACK <- Rr
+    mcu->sram[*mcu->sp] = *Rr;
+
+    // SP <- SP - 1
+    (*mcu->sp)--;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// pop - pop register from stack
+static inline void pop(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd = &mcu->reg[d];
+
+    // SP <- SP + 1
+    (*mcu->sp)++;
+
+    // Rd <- STACK
+    *Rd = mcu->sram[*mcu->sp];
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// break break
+static inline void break_(AVR_MCU *restrict mcu) {
+    mcu->pc++;
+}
+
+// lac load and clear
+static inline void lac(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd        = &mcu->reg[d];
+    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
+    const u16 tmp = *Z;
+
+    // (Z) <- ($FF - Rd) & (Z), Rd <- (Z)
+    *Z  = (0xFF - *Rd) & *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// las load and clear
+static inline void las(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd        = &mcu->reg[d];
+    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
+    const u16 tmp = *Z;
+
+    // (Z) <- Rd | (Z), Rd <- (Z)
+    *Z  = *Rd | *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
+// lat load and toggle
+static inline void lat(AVR_MCU *restrict mcu, u8 d) {
+    ASSERT_BOUNDS(d, 0, 31);
+
+    u8 *Rd        = &mcu->reg[d];
+    u16 *Z        = (u16 *)&mcu->reg[REG_Z];
+    const u16 tmp = *Z;
+
+    // (Z) <- Rd ^ (Z), Rd <- (Z)
+    *Z  = *Rd ^ *Z;
+    *Rd = tmp;
+
+    // PC <- PC + 1
+    mcu->pc++;
+}
+
 void avr_mcu_init(AVR_MCU *restrict mcu) {
     memset(mcu, 0, sizeof(*mcu));
     mcu->reg        = &mcu->data[AVR_MCU_REG_OFFSET];
     mcu->io_reg     = &mcu->data[AVR_MCU_IO_REG_OFFSET];
     mcu->ext_io_reg = &mcu->data[AVR_MCU_EXT_IO_REG_OFFSET];
     mcu->sram       = &mcu->data[AVR_MCU_SRAM_OFFSET];
-    mcu->sp         = sizeof(mcu->data) - 2;
+    mcu->sp         = (u16 *)&mcu->data[0x3D];
+    *mcu->sp        = AVR_MCU_RAMEND;
 }
 
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
@@ -1458,6 +1710,12 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         in(mcu, d, A);
         return;
     }
+    case OP_OUT: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        const u8 A = ((op & 0x600) >> 5) | (op & 0x000F);
+        out(mcu, r, A);
+        return;
+    }
     }
 
     /***************************************************************************
@@ -1540,6 +1798,12 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         const i8 k = (i8)(64 - ((op & 0x03F8) >> 3));
         const u8 s = op & 0x0003;
         brbs(mcu, k, s);
+        return;
+    }
+    case OP_MOV: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 r = GET_REG_DIRECT_SRC(op);
+        mov(mcu, d, r);
         return;
     }
     }
@@ -1638,47 +1902,47 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         lat(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_X): {
+    case OP_LD_X: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_x(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_X_POSTINC): {
+    case OP_LD_X_POSTINC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_x_postinc(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_X_PREDEC): {
+    case OP_LD_X_PREDEC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_x_predec(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Y): {
+    case OP_LD_Y: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_y(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Y_POSTINC): {
+    case OP_LD_Y_POSTINC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_y_postinc(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Y_PREDEC): {
+    case OP_LD_Y_PREDEC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_y_predec(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Z): {
+    case OP_LD_Z: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_z(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Z_POSTINC): {
+    case OP_LD_Z_POSTINC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_z_postinc(mcu, d);
         return;
     }
-    case (OP_LD_ | OP_LD_Z_PREDEC): {
+    case OP_LD_Z_PREDEC: {
         const u8 d = GET_REG_DIRECT_DST(op);
         ld_z_predec(mcu, d);
         return;
@@ -1687,6 +1951,77 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         const u8 d = GET_REG_DIRECT_DST(op);
         const u8 k = mcu->flash[mcu->pc + 1];
         lds(mcu, d, k);
+        return;
+    }
+    case OP_ST_X: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_x(mcu, r);
+        return;
+    }
+    case OP_ST_X_POSTINC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_x_postinc(mcu, r);
+        return;
+    }
+    case OP_ST_X_PREDEC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_x_predec(mcu, r);
+        return;
+    }
+    case OP_ST_Y: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_y(mcu, r);
+        return;
+    }
+    case OP_ST_Y_POSTINC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_y_postinc(mcu, r);
+        return;
+    }
+    case OP_ST_Y_PREDEC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_y_predec(mcu, r);
+        return;
+    }
+    case OP_ST_Z: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_z(mcu, r);
+        return;
+    }
+    case OP_ST_Z_POSTINC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_z_postinc(mcu, r);
+        return;
+    }
+    case OP_ST_Z_PREDEC: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        st_z_predec(mcu, r);
+        return;
+    }
+    case OP_STS: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        const u8 k = mcu->flash[mcu->pc + 1];
+        sts(mcu, r, k);
+        return;
+    }
+    case OP_LPM: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        lpm(mcu, d);
+        return;
+    }
+    case OP_LPM_POSTINC: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        lpm_postinc(mcu, d);
+        return;
+    }
+    case OP_PUSH: {
+        const u8 r = GET_REG_DIRECT_DST(op);
+        push(mcu, r);
+        return;
+    }
+    case OP_POP: {
+        const u8 d = GET_REG_DIRECT_DST(op);
+        pop(mcu, d);
         return;
     }
     }
@@ -1735,6 +2070,12 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
         const u8 A = (op & 0x00F8) >> 3;
         const u8 b = op & 0x0003;
         cbi(mcu, A, b);
+        return;
+    }
+    case OP_MOVW: {
+        const u8 d = (op & 0x00F0) >> 4;
+        const u8 r = op & 0x000F;
+        movw(mcu, d, r);
         return;
     }
     }
@@ -1811,9 +2152,45 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
     case OP_RETI:
         reti(mcu);
         return;
+    case OP_LPM_R0:
+        lpm(mcu, 0);
+        return;
+    case OP_SPM:
+        spm(mcu);
+        return;
     case OP_BREAK:
         break_(mcu);
         return;
+    }
+
+    /***************************************************************************
+     * Edge case
+     **************************************************************************/
+    switch (op & OP_MASK_Q) {
+    case OP_LDD_Y: {
+        const u8 d = GET_REG_IMMEDIATE_DST(op);
+        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
+        ldd_y(mcu, d, q);
+        return;
+    }
+    case OP_LDD_Z: {
+        const u8 d = GET_REG_IMMEDIATE_DST(op);
+        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
+        ldd_z(mcu, d, q);
+        return;
+    }
+    case OP_STD_Y: {
+        const u8 d = GET_REG_IMMEDIATE_DST(op);
+        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
+        std_y(mcu, d, q);
+        return;
+    }
+    case OP_STD_Z: {
+        const u8 d = GET_REG_IMMEDIATE_DST(op);
+        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
+        std_z(mcu, d, q);
+        return;
+    }
     }
 
     LOG_ERROR("unknown instruction %#x", op);

@@ -520,7 +520,7 @@ static AVR_Result test_branch_instructions(void) {
 
     // rcall
     for (i16 i = -2048; i < 2048; i++) {
-        mcu.sp = sizeof(mcu.data) - 2;
+        *mcu.sp = AVR_MCU_RAMEND - 2;
 
         u16 expected = mcu.pc + i + 1;
 
@@ -536,7 +536,7 @@ static AVR_Result test_branch_instructions(void) {
 
     // icall
     {
-        mcu.sp = sizeof(mcu.data) - 2;
+        *mcu.sp = AVR_MCU_RAMEND - 2;
 
         *(u16 *)&mcu.reg[REG_Z] = 42;
         u16 expected            = 42;
@@ -553,7 +553,7 @@ static AVR_Result test_branch_instructions(void) {
 
     // call
     for (i16 i = 0; i < 2048; i++) {
-        mcu.sp = sizeof(mcu.data) - 2;
+        *mcu.sp = AVR_MCU_RAMEND - 2;
 
         u16 expected = i;
 
@@ -569,8 +569,8 @@ static AVR_Result test_branch_instructions(void) {
 
     // ret
     {
-        mcu.pc = 0x200;
-        mcu.sp = sizeof(mcu.data) - 32;
+        mcu.pc  = 0x200;
+        *mcu.sp = AVR_MCU_RAMEND - 32;
 
         u16 expected = mcu.pc + 1;
 
@@ -587,8 +587,8 @@ static AVR_Result test_branch_instructions(void) {
 
     // reti
     {
-        mcu.pc = 0x200;
-        mcu.sp = sizeof(mcu.data) - 32;
+        mcu.pc  = 0x200;
+        *mcu.sp = AVR_MCU_RAMEND - 32;
 
         u16 expected = mcu.pc + 1;
 
@@ -660,16 +660,16 @@ static AVR_Result test_branch_instructions(void) {
     }
 
     // sbrc
-    // TODO
+    // TODO tests
 
     // sbrs
-    // TODO
+    // TODO tests
 
     // sbic
-    // TODO
+    // TODO tests
 
     // sbis
-    // TODO
+    // TODO tests
 
     // brbs
     for (int i = 0; i < 8; i++) {
@@ -880,33 +880,90 @@ static AVR_Result test_bit_and_bit_test_instructions(void) {
 }
 
 static AVR_Result test_data_transfer_instructions(void) {
-    return AVR_OK;
-}
-
-static AVR_Result avr_run_tests(void) {
     AVR_MCU mcu;
     avr_mcu_init(&mcu);
 
-    // call
-    for (u32 i = 0; i < (sizeof(mcu.data) / 2); i++) {
-        u16 expected     = i;
-        u16 expected_sp  = mcu.sp - 2;
-        u16 expected_stk = i + 2;
+    // mov
+    {
+        mcu.reg[0] = 0;
+        mcu.reg[1] = 0xFF;
 
-        call(&mcu, i);
+        u8 expected = 0xFF;
 
-        u16 real     = mcu.pc;
-        u16 real_sp  = mcu.sp;
-        u16 real_stk = *(u16 *)&mcu.data[mcu.sp];
+        mov(&mcu, 0, 1);
+
+        u8 real = mcu.reg[0];
 
         if (real != expected) {
-            LOG_ERROR("test failed call: real %#x, expected %#x", real, expected);
+            LOG_ERROR("test failed mov: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
-        } else if (real_sp != expected_sp) {
-            LOG_ERROR("test failed call: real_sp %#x, expected_sp %#x", real_sp, expected_sp);
+        }
+    }
+
+    // mov
+    {
+        *(u16 *)&mcu.reg[0] = 0;
+        *(u16 *)&mcu.reg[2] = 0xBEEF;
+
+        u16 expected = 0xBEEF;
+
+        movw(&mcu, 0, 1);
+
+        u16 real = *(u16 *)&mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed movw: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
-        } else if (real_stk != expected_stk) {
-            LOG_ERROR("test failed call: real_stk %#x, expected_stk %#x", real_stk, expected_stk);
+        }
+    }
+
+    // ldi
+    // TODO tests
+
+    // ld
+    for (int i = 0; i < 256; i++) {
+        *(u16 *)&mcu.reg[REG_X] = i + 256;
+        mcu.data[i + 256]       = i;
+
+        u8 expected = i;
+
+        ld_x(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+        if (real != expected) {
+            LOG_ERROR("test failed ld: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // ldd
+    // TODO tests
+
+    // lds
+    // TODO tests
+
+    // st
+    // TODO tests
+
+    // std
+    // TODO tests
+
+    // sts
+    // TODO tests
+
+    // lpm
+    {
+        *(u16 *)&mcu.reg[REG_Z] = 256;
+        mcu.data[256]           = 42;
+
+        u8 expected = 42;
+
+        lpm(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed lpm: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
     }
@@ -927,6 +984,71 @@ static AVR_Result avr_run_tests(void) {
         }
     }
 
+    // out
+    // TODO tests
+
+    // push
+    {
+        *mcu.sp    = 0x400;
+        mcu.reg[0] = 42;
+
+        u8 expected = 42;
+
+        push(&mcu, 0);
+
+        u8 real = mcu.sram[*mcu.sp + 1];
+
+        if (real != expected) {
+            LOG_ERROR("test failed push: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    // push
+    {
+        u8 expected = 42;
+
+        pop(&mcu, 0);
+
+        u8 real = mcu.reg[0];
+
+        if (real != expected) {
+            LOG_ERROR("test failed pop: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        }
+    }
+
+    return AVR_OK;
+}
+
+static AVR_Result avr_run_tests(void) {
+    AVR_MCU mcu;
+    avr_mcu_init(&mcu);
+
+    // call
+    for (u32 i = 0; i < (sizeof(mcu.data) / 2); i++) {
+        u16 expected     = i;
+        u16 expected_sp  = *mcu.sp - 2;
+        u16 expected_stk = i + 2;
+
+        call(&mcu, i);
+
+        u16 real     = mcu.pc;
+        u16 real_sp  = *mcu.sp;
+        u16 real_stk = *(u16 *)&mcu.sram[*mcu.sp];
+
+        if (real != expected) {
+            LOG_ERROR("test failed call: real %#x, expected %#x", real, expected);
+            return AVR_ERROR;
+        } else if (real_sp != expected_sp) {
+            LOG_ERROR("test failed call: real_sp %#x, expected_sp %#x", real_sp, expected_sp);
+            return AVR_ERROR;
+        } else if (real_stk != expected_stk) {
+            LOG_ERROR("test failed call: real_stk %#x, expected_stk %#x", real_stk, expected_stk);
+            return AVR_ERROR;
+        }
+    }
+
     // lac
     // TODO
 
@@ -935,28 +1057,6 @@ static AVR_Result avr_run_tests(void) {
 
     // lat
     // TODO
-
-    // ld
-    for (int i = 0; i < 256; i++) {
-        *(u16 *)&mcu.reg[REG_X] = i + 256;
-        mcu.data[i + 256]       = i;
-
-        u8 expected = i;
-
-        ld_x(&mcu, 0);
-
-        u8 real = mcu.reg[0];
-        if (real != expected) {
-            LOG_ERROR("test failed ld: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
-
-    // ldi
-    // no need to test
-
-    // lds
-    // no need to test
 
     return AVR_OK;
 }

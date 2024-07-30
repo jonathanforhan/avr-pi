@@ -31,6 +31,12 @@ extern "C" {
 #endif
 
 /**
+ * @def AVR_MCU_SP_OFFSET
+ * @brief Stack pointer offset.
+ */
+#define AVR_MCU_SP_OFFSET 0x003D
+
+/**
  * @def AVR_MCU_REG_OFFSET
  * @brief Data offset used by registers.
  */
@@ -73,6 +79,12 @@ extern "C" {
 #define AVR_MCU_EEPROM_SIZE 0x08FF
 
 /**
+ * @def AVR_MCU_RAMEND
+ * @brief End of SRAM.
+ */
+#define AVR_MCU_RAMEND 0x0800
+
+/**
  * @brief Result type for avr_* functions.
  */
 typedef enum AVR_Result {
@@ -90,11 +102,11 @@ typedef struct AVR_MCU {
     /** @brief Program counter. */
     uint16_t pc;
 
-    /** @brief Stack pointer. */
-    uint16_t sp;
-
     /** @brief Status Register. */
     uint8_t sreg;
+
+    /** @brief Stack pointer. */
+    uint16_t *sp;
 
     /** @brief Working registers offset in data memory. */
     uint8_t *reg;
