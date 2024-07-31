@@ -679,7 +679,7 @@ static AVR_Result test_branch_instructions(void) {
 
         u8 expected = GET_BIT(mcu.sreg, i) == 1 ? mcu.pc + k + 1 : mcu.pc + 1;
 
-        brbs(&mcu, k, i);
+        brbs(&mcu, i, k);
 
         u8 real = mcu.pc;
 
@@ -697,7 +697,7 @@ static AVR_Result test_branch_instructions(void) {
 
         u8 expected = GET_BIT(mcu.sreg, i) == 0 ? mcu.pc + k + 1 : mcu.pc + 1;
 
-        brbc(&mcu, k, i);
+        brbc(&mcu, i, k);
 
         u8 real = mcu.pc;
 

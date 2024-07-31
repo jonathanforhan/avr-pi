@@ -34,6 +34,7 @@
 #define PRINT_DEBUG(...) (void)0
 #else
 #define PRINT_DEBUG(...) (void)printf(__VA_ARGS__)
+// #define PRINT_DEBUG(...) (void)0
 #endif
 
 // get Nth bit from X returns 0 or 1

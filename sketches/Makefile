@@ -6,7 +6,7 @@ SKETCHES := $(wildcard *)
 .PHONY: all clean
 
 all: $(SKETCHES)
-	$(CLI) compile --quiet -b $(BOARD) $< --output-dir $(shell pwd)
+	$(CLI) compile --verbose -b $(BOARD) $< --output-dir $(shell pwd)
 
 clean:
 	$(RM) *.bin
