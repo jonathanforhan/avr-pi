@@ -53,10 +53,10 @@
 #define TWO_COMP(X) (~(X) + 1)
 
 // convert a 12bit number to i16
-#define I12_TO_I16(X) ((X) | GET_BIT((X), 11) * 0xF000)
+#define I12_TO_I16(X) ((X) | (GET_BIT((X), 11) * 0xF000))
 
 // convert a 7bit number to i16
-#define I7_TO_I16(X) ((X) | GET_BIT((X), 6) * 0xFF80)
+#define I7_TO_I16(X) ((X) | (GET_BIT((X), 6) * 0xFF80))
 
 // assert X is equal to or between LO and HI
 #define ASSERT_BOUNDS(X, LO, HI) assert((X) >= (LO) && (X) <= (HI))
