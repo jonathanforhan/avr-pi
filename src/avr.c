@@ -1458,7 +1458,7 @@ static inline void lpm(AVR_MCU *restrict mcu, u8 d) {
     const u16 Z = *(u16 *)&mcu->reg[REG_Z];
 
     // Rd <- (Z)
-    *Rd = mcu->data[Z];
+    *Rd = ((u8 *)&mcu->flash)[Z];
 
     // PC <- PC + 1
     mcu->pc += 1;
@@ -1475,7 +1475,7 @@ static inline void spm(AVR_MCU *restrict mcu) {
     const u16 Z   = *(u16 *)&mcu->reg[REG_Z];
 
     // (Z) <- Rr
-    *(u16 *)&mcu->data[Z] = *Rr;
+    mcu->flash[Z] = *Rr;
 
     // PC <- PC + 1
     mcu->pc += 1;

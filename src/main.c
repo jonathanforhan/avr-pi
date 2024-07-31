@@ -105,7 +105,6 @@ int main(int argc, char *argv[]) {
     buf = NULL;
 
     for (;;) {
-        usleep(2500);
         avr_cycle(&mcu);
         PRINT_DEBUG("\t SREG: CZNVSHTI ");
         for (int i = 0; i < 8; i++) {
