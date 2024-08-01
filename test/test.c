@@ -106,7 +106,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u8 expected = mcu.reg[16] - j;
 
-            subi(&mcu, 0, j);
+            subi(&mcu, 16, j);
 
             u8 real = mcu.reg[16];
 
@@ -144,7 +144,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u8 expected = mcu.reg[16] - j - 1;
 
-            sbci(&mcu, 0, j);
+            sbci(&mcu, 16, j);
 
             u8 real = mcu.reg[16];
 
@@ -198,7 +198,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u8 expected = mcu.reg[16] & j;
 
-            andi(&mcu, 0, j);
+            andi(&mcu, 16, j);
 
             u8 real = mcu.reg[16];
 
@@ -234,7 +234,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u8 expected = mcu.reg[16] | j;
 
-            ori(&mcu, 0, j);
+            ori(&mcu, 16, j);
 
             u8 real = mcu.reg[16];
 
@@ -349,7 +349,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
         u8 expected = 0xFF;
 
-        ser(&mcu, 0);
+        ser(&mcu, 16);
 
         u8 real = mcu.reg[16];
 
@@ -384,7 +384,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             i16 expected = (i16)(i * j);
 
-            muls(&mcu, 0, 1);
+            muls(&mcu, 16, 17);
 
             i16 real = *(i16 *)&mcu.reg[0];
 
@@ -402,7 +402,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             i16 expected = (i16)(i * j);
 
-            mulsu(&mcu, 0, 1);
+            mulsu(&mcu, 16, 17);
 
             i16 real = *(i16 *)&mcu.reg[0];
 
@@ -420,7 +420,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u16 expected = (i * j) << 1;
 
-            fmul(&mcu, 0, 1);
+            fmul(&mcu, 16, 17);
 
             u16 real = *(u16 *)&mcu.reg[0];
 
@@ -439,7 +439,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             i16 expected = (i16)((i * j) << 1);
 
-            fmuls(&mcu, 0, 1);
+            fmuls(&mcu, 16, 17);
 
             i16 real = *(i16 *)&mcu.reg[0];
 
@@ -457,7 +457,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             i16 expected = (i16)((i * j) << 1);
 
-            fmulsu(&mcu, 0, 1);
+            fmulsu(&mcu, 16, 17);
 
             i16 real = *(i16 *)&mcu.reg[0];
 
@@ -479,7 +479,7 @@ static AVR_Result test_branch_instructions(void) {
     for (i16 i = -2048; i < 2048; i++) {
         u16 expected = mcu.pc + i + 1;
 
-        rjmp(&mcu, (i16)(i & 0x0FFF));
+        rjmp(&mcu, I12_TO_I16(i & 0x0FFF));
 
         u16 real = mcu.pc;
 
@@ -524,7 +524,7 @@ static AVR_Result test_branch_instructions(void) {
 
         u16 expected = mcu.pc + i + 1;
 
-        rcall(&mcu, (i16)(i & 0x0FFF));
+        rcall(&mcu, I12_TO_I16(i & 0x0FFF));
 
         u16 real = mcu.pc;
 
@@ -649,7 +649,7 @@ static AVR_Result test_branch_instructions(void) {
 
         u8 expected = mcu.reg[16] == i;
 
-        cpi(&mcu, 0, i);
+        cpi(&mcu, 16, i);
 
         u8 real = GET_BIT(*mcu.sreg, SREG_Z);
 
@@ -907,7 +907,7 @@ static AVR_Result test_data_transfer_instructions(void) {
 
         u16 expected = 0xBEEF;
 
-        movw(&mcu, 0, 1);
+        movw(&mcu, 0, 2);
 
         u16 real = *(u16 *)&mcu.reg[0];
 
