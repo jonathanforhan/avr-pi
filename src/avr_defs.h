@@ -228,13 +228,118 @@
     (((OP) & OP_MASK_7_3) == OP_JMP || ((OP) & OP_MASK_7_3) == OP_CALL || ((OP) & OP_MASK_7_4) == OP_STS || \
      ((OP) & OP_MASK_7_4) == OP_LDS)
 
-/*******************************************************************************
- * Addressing
- ******************************************************************************/
-#define GET_REG_DIRECT_DST(OP) (((OP) & 0x01F0) >> 4)
-#define GET_REG_DIRECT_SRC(OP) (((OP) & 0x0200) >> 5 | ((OP) & 0x000F))
+#define MSK(OP, MSK)     ((OP) & (MSK))           /* mask without shift */
+#define MSH(OP, MSK, SH) (((OP) & (MSK)) >> (SH)) /* mask and shift */
 
-#define GET_REG_IMMEDIATE_DST(OP)   (((OP) & 0x00F0) >> 4)
-#define GET_REG_IMMEDIATE_CONST(OP) ((((OP) & 0x0F00) >> 4) | ((OP) & 0x000F))
+/*******************************************************************************
+ * IO Register Offsets
+ ******************************************************************************/
+#define REG_PINB   0x23
+#define REG_DDRB   0x24
+#define REG_PORTB  0x25
+#define REG_PINC   0x26
+#define REG_DDRC   0x27
+#define REG_PORTC  0x28
+#define REG_PIND   0x29
+#define REG_DDRD   0x2A
+#define REG_PORTD  0x2B
+// RESERVED 0x2C - 0x34
+#define REG_TIFR0  0x35
+#define REG_TIFR1  0x36
+#define REG_TIFR2  0x37
+// RESERVED 0x38 - 0x3A
+#define REG_PCIFR  0x3B
+#define REG_EIFR   0x3C
+#define REG_EIMSK  0x3D
+#define REG_GPIOR0 0x3E
+#define REG_EECR   0x3F
+#define REG_EEDR   0x40
+#define REG_EEARL  0x41
+#define REG_EEARH  0x42
+#define REG_GTCCR  0x43
+#define REG_TCCR0A 0x44
+#define REG_TCCR0B 0x45
+#define REG_TCNT0  0x46
+#define REG_OCR0A  0x47
+#define REG_OCR0B  0x48
+// RESERVED 0x49
+#define REG_GPIOR1 0x4A
+#define REG_GPIOR2 0x4B
+#define REG_SPCR   0x4C
+#define REG_SPSR   0x4D
+#define REG_SPDR   0x4E
+// RESERVED 0x4F
+#define REG_ACSR   0x50
+// RESERVED 0x51 - 0x52
+#define REG_SMCR   0x53
+#define REG_MCUSR  0x54
+#define REG_MCUCR  0x55
+// RESERVED 0x56
+#define REG_SPMCSR 0x57
+// RESERVED 0x58 - 0x5C
+#define REG_SPL    0x5D
+#define REG_SPH    0x5E
+#define REG_SREG   0x5F
+#define REG_WDTCSR 0x60
+#define REG_CLKPR  0x61
+// RESERVED 0x62 - 0x63
+#define REG_PRR    0x64
+// RESERVED 0x65
+#define REG_OSCCAL 0x66
+// RESERVED 0x67
+#define REG_PCICR  0x68
+#define REG_EICRA  0x69
+// RESERVED 0x6A
+#define REG_PCMSK0 0x6B
+#define REG_PCMSK1 0x6C
+#define REG_PCMSK2 0x6D
+#define REG_TIMSK0 0x6E
+#define REG_TIMSK1 0x6F
+#define REG_TIMSK2 0x70
+// RESERVED 0x71 - 0x77
+#define REG_ADCL   0x78
+#define REG_ADCH   0x79
+#define REG_ADCSRA 0x7A
+#define REG_ADCSRB 0x7B
+#define REG_ADMUX  0x7C
+// RESERVED 0x7D
+#define REG_DIDR0  0x7E
+#define REG_DIDR1  0x7F
+#define REG_TCCR1A 0x80
+#define REG_TCCR1B 0x81
+#define REG_TCCR1C 0x82
+// RESERVED 0x83
+#define REG_TCNT1L 0x84
+#define REG_TCNT1H 0x85
+#define REG_ICR1L  0x86
+#define REG_ICR1H  0x87
+#define REG_OCR1AL 0x88
+#define REG_OCR1AH 0x89
+#define REG_OCR1BL 0x8A
+#define REG_OCR1BH 0x8B
+// RESERVED 0x8C - 0xAF
+#define REG_TCCR2A 0xB0
+#define REG_TCCR2B 0xB1
+#define REG_TCNT3  0xB1
+#define REG_OCR2A  0xB3
+#define REG_OCR2B  0xB4
+// RESERVED 0xB5
+#define REG_ASSR   0xB6
+// RESERVED 0xB7
+#define REG_TWBR   0xB8
+#define REG_TWSR   0xB9
+#define REG_TWAR   0xBA
+#define REG_TWDR   0xBB
+#define REG_TWCR   0xBC
+#define REG_TWAMR  0xBD
+// RESERVED 0xBE - 0xBF
+#define REG_UCSR0A 0xC0
+#define REG_UCSR0B 0xC1
+#define REG_UCSR0C 0xC2
+// RESERVED 0xC3
+#define REG_UBRR0L 0xC4
+#define REG_UBRR0H 0xC5
+#define REG_UDR0   0xC6
+// RESERVED 0xC7 - 0xFF
 
 #endif // _AVR__AVR_DEFS_H_

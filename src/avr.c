@@ -1642,7 +1642,8 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
 }
 
 void avr_cycle(AVR_MCU *const restrict mcu) {
-    ASSERT_BOUNDS(*mcu->sp, 0, AVR_MCU_DATA_SIZE);
+    ASSERT_BOUNDS(*mcu->sp, 0, AVR_MCU_DATA_SIZE - 1);
+    ASSERT_BOUNDS(mcu->pc, 0, AVR_MCU_FLASH_SIZE - 1);
 
     const u16 op = mcu->flash[mcu->pc];
 
@@ -1651,55 +1652,55 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_4) {
     case OP_SUBI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("SUBI R%u %#x", d, K);
         subi(mcu, d, K);
         return;
     }
     case OP_SBCI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("SBCI R%u %#x", d, K);
         sbci(mcu, d, K);
         return;
     }
     case OP_ANDI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("ANDI R%u %#x", d, K);
         andi(mcu, d, K);
         return;
     }
     case OP_ORI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("ORI R%u %#x", d, K);
         ori(mcu, d, K);
         return;
     }
     case OP_RJMP: {
-        const i16 k = (i16)(op & 0x0FFF);
+        const i16 k = MSK(op, 0x0FFF);
         PRINT_DEBUG("RJMP %#x", k);
         rjmp(mcu, k);
         return;
     }
     case OP_RCALL: {
-        const i16 k = (i16)(op & 0x0FFF);
+        const i16 k = MSK(op, 0x0FFF);
         PRINT_DEBUG("RCALL %#x", k);
         rcall(mcu, k);
         return;
     }
     case OP_CPI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("CPI R%u %#x", d, K);
         cpi(mcu, d, K);
         return;
     }
     case OP_LDI: {
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 K = GET_REG_IMMEDIATE_CONST(op);
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 K = MSH(op, 0x0F00, 4) | MSK(op, 0x000F);
         PRINT_DEBUG("LDI R%u %#x", d, K);
         ldi(mcu, d, K);
         return;
@@ -1711,15 +1712,15 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_5) {
     case OP_IN: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 A = ((op & 0x600) >> 5) | (op & 0x000F);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 A = MSH(op, 0x0600, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("IN R%u IO%u", d, A);
         in(mcu, d, A);
         return;
     }
     case OP_OUT: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        const u8 A = ((op & 0x600) >> 5) | (op & 0x000F);
+        const u8 r = MSH(op, 0x01F0, 4);
+        const u8 A = MSH(op, 0x0600, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("OUT R%u IO%u", r, A);
         out(mcu, r, A);
         return;
@@ -1731,99 +1732,99 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_6) {
     case OP_ADD: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("ADD R%u R%u", d, r);
         add(mcu, d, r);
         return;
     }
     case OP_ADC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("ADC R%u R%u", d, r);
         adc(mcu, d, r);
         return;
     }
     case OP_SUB: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("SUB R%u R%u", d, r);
         sub(mcu, d, r);
         return;
     }
     case OP_SBC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("SBC R%u R%u", d, r);
         sbc(mcu, d, r);
         return;
     }
     case OP_AND: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("AND R%u R%u", d, r);
         and(mcu, d, r);
         return;
     }
     case OP_OR: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("OR R%u R%u", d, r);
         or (mcu, d, r);
         return;
     }
     case OP_EOR: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("EOR R%u R%u", d, r);
         eor(mcu, d, r);
         return;
     }
     case OP_MUL: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("MUL R%u R%u", d, r);
         mul(mcu, d, r);
         return;
     }
     case OP_CPSE: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("CPSE R%u R%u", d, r);
         cpse(mcu, d, r);
         return;
     }
     case OP_CP: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("CP R%u R%u", d, r);
         cp(mcu, d, r);
         return;
     }
     case OP_CPC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("CPC R%u R%u", d, r);
         cpc(mcu, d, r);
         return;
     }
     case OP_BRBC: {
-        const u8 s = op & 0x0003;
-        const i8 k = (i8)((op & 0x03F8) >> 3);
+        const u8 s = MSK(op, 0x0003);
+        const i8 k = MSH(op, 0x03F8, 3);
         PRINT_DEBUG("BRBC %d %#x", (int)(i16)I7_TO_I16(k), s);
         brbc(mcu, s, k);
         return;
     }
     case OP_BRBS: {
-        const u8 s = op & 0x0003;
-        const i8 k = (i8)((op & 0x03F8) >> 3);
+        const u8 s = MSK(op, 0x0003);
+        const i8 k = MSH(op, 0x03F8, 3);
         PRINT_DEBUG("BRBS %d %#x", (int)(i16)I7_TO_I16(k), s);
         brbs(mcu, s, k);
         return;
     }
     case OP_MOV: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 r = GET_REG_DIRECT_SRC(op);
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
         PRINT_DEBUG("MOV R%u R%u", d, r);
         mov(mcu, d, r);
         return;
@@ -1835,29 +1836,29 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_7_1) {
     case OP_SBRC: {
-        const u8 r = (op & 0x01F0) >> 4;
-        const u8 b = op & 0x0003;
+        const u8 r = MSH(op, 0x01F0, 4);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("SBRC R%u %#x", r, b);
         sbrc(mcu, r, b);
         return;
     }
     case OP_SBRS: {
-        const u8 r = (op & 0x01F0) >> 4;
-        const u8 b = op & 0x0003;
+        const u8 r = MSH(op, 0x01F0, 4);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("SBRS R%u %#x", r, b);
         sbrs(mcu, r, b);
         return;
     }
     case OP_BST: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 b = op & 0x0003;
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("BST R%u %#x", d, b);
         bst(mcu, d, b);
         return;
     }
     case OP_BLD: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        const u8 b = op & 0x0003;
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("BLD R%u %#x", d, b);
         bld(mcu, d, b);
         return;
@@ -1880,190 +1881,196 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
     }
 
     switch (op & OP_MASK_7_4) {
+    case OP_COM: {
+        const u8 d = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("COM R%u", d);
+        com(mcu, d);
+        return;
+    }
     case OP_NEG: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("NEG R%u", d);
         neg(mcu, d);
         return;
     }
     case OP_INC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("INC R%u", d);
         inc(mcu, d);
         return;
     }
     case OP_DEC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("DEC R%u", d);
         dec(mcu, d);
         return;
     }
     case OP_LSR: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LSR R%u", d);
         lsr(mcu, d);
         return;
     }
     case OP_ROR: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("ROR R%u", d);
         ror(mcu, d);
         return;
     }
     case OP_ASR: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("ASR R%u", d);
         asr(mcu, d);
         return;
     }
     case OP_SWAP: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("SWAP R%u", d);
         swap(mcu, d);
         return;
     }
     case OP_LD_X: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_X R%u", d);
         ld_x(mcu, d);
         return;
     }
     case OP_LD_X_POSTINC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_X_POSTINC R%u", d);
         ld_x_postinc(mcu, d);
         return;
     }
     case OP_LD_X_PREDEC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_X_PREDEC R%u", d);
         ld_x_predec(mcu, d);
         return;
     }
     case OP_LD_Y: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Y R%u", d);
         ld_y(mcu, d);
         return;
     }
     case OP_LD_Y_POSTINC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Y_POSTINC R%u", d);
         ld_y_postinc(mcu, d);
         return;
     }
     case OP_LD_Y_PREDEC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Y_PREDEC R%u", d);
         ld_y_predec(mcu, d);
         return;
     }
     case OP_LD_Z: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Z R%u", d);
         ld_z(mcu, d);
         return;
     }
     case OP_LD_Z_POSTINC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Z_POSTINC R%u", d);
         ld_z_postinc(mcu, d);
         return;
     }
     case OP_LD_Z_PREDEC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LD_Z_PREDEC R%u", d);
         ld_z_predec(mcu, d);
         return;
     }
     case OP_LDS: {
-        const u8 d  = GET_REG_DIRECT_DST(op);
+        const u8 d  = MSH(op, 0x01F0, 4);
         const u16 k = mcu->flash[mcu->pc + 1];
         PRINT_DEBUG("LDS R%u %#x", d, k);
         lds(mcu, d, k);
         return;
     }
     case OP_ST_X: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_X R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_X R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_X]]);
         st_x(mcu, r);
         return;
     }
     case OP_ST_X_POSTINC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_X_POSTINC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_X_POSTINC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_X]]);
         st_x_postinc(mcu, r);
         return;
     }
     case OP_ST_X_PREDEC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_X_PREDEC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_X_PREDEC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_X]]);
         st_x_predec(mcu, r);
         return;
     }
     case OP_ST_Y: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Y R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Y R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Y]]);
         st_y(mcu, r);
         return;
     }
     case OP_ST_Y_POSTINC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Y_POSTINC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Y_POSTINC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Y]]);
         st_y_postinc(mcu, r);
         return;
     }
     case OP_ST_Y_PREDEC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Y_PREDEC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Y_PREDEC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Y]]);
         st_y_predec(mcu, r);
         return;
     }
     case OP_ST_Z: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Z R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Z R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Z]]);
         st_z(mcu, r);
         return;
     }
     case OP_ST_Z_POSTINC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Z_POSTINC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Z_POSTINC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Z]]);
         st_z_postinc(mcu, r);
         return;
     }
     case OP_ST_Z_PREDEC: {
-        const u8 r = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("ST_Z_PREDEC R%u", r);
+        const u8 r = MSH(op, 0x01F0, 4);
+        PRINT_DEBUG("ST_Z_PREDEC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Z]]);
         st_z_predec(mcu, r);
         return;
     }
     case OP_STS: {
-        const u8 r  = GET_REG_DIRECT_DST(op);
+        const u8 r  = MSH(op, 0x01F0, 4);
         const u16 k = mcu->flash[mcu->pc + 1];
-        PRINT_DEBUG("ST_Z_PREDEC R%u %#x", r, k);
+        PRINT_DEBUG("ST_Z_PREDEC R%u %#x", r, mcu->data[*(u16 *)&mcu->reg[REG_Z]]);
         sts(mcu, r, k);
         return;
     }
     case OP_LPM: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LPM R%u %#x", d, *(u16 *)&mcu->reg[REG_Z]);
         lpm(mcu, d);
         return;
     }
     case OP_LPM_POSTINC: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("LPM_POSTINC R%u %#x", d, *(u16 *)&mcu->reg[REG_Z]);
         lpm_postinc(mcu, d);
         return;
     }
     case OP_PUSH: {
-        const u8 r = GET_REG_DIRECT_DST(op);
+        const u8 r = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("PUSH R%u", r);
         push(mcu, r);
         return;
     }
     case OP_POP: {
-        const u8 d = GET_REG_DIRECT_DST(op);
+        const u8 d = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("POP R%u", d);
         pop(mcu, d);
         return;
@@ -2075,57 +2082,57 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_8) {
     case OP_ADIW: {
-        const u8 d = (op & 0x0030) >> 4;
-        const u8 K = ((op & 0x00C0) >> 2) | (op & 0x000F);
+        const u8 d = MSH(op, 0x0030, 4);
+        const u8 K = MSH(op, 0x00C0, 2) | MSK(op, 0x000F);
         PRINT_DEBUG("ADIW R%u %#x", d, K);
         adiw(mcu, d, K);
         return;
     }
     case OP_SBIW: {
-        const u8 d = (op & 0x0030) >> 4;
-        const u8 K = ((op & 0x00C0) >> 2) | (op & 0x000F);
+        const u8 d = MSH(op, 0x0030, 4);
+        const u8 K = MSH(op, 0x00C0, 2) | MSK(op, 0x000F);
         PRINT_DEBUG("SBIW R%u %#x", d, K);
         sbiw(mcu, d, K);
         return;
     }
     case OP_MULS: {
-        const u8 d = (op & 0x00F0) >> 4;
-        const u8 r = op & 0x000F;
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 r = MSK(op, 0x000F);
         PRINT_DEBUG("MULS R%u R%u", d, r);
         muls(mcu, d, r);
         return;
     }
     case OP_SBIC: {
-        const u8 A = (op & 0x00F8) >> 3;
-        const u8 b = op & 0x0003;
+        const u8 A = MSH(op, 0x00F8, 3);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("SBIC IO%u %#x", A, b);
         sbic(mcu, A, b);
         return;
     }
     case OP_SBIS: {
-        const u8 A = (op & 0x00F8) >> 3;
-        const u8 b = op & 0x0003;
+        const u8 A = MSH(op, 0x00F8, 3);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("SBIS IO%u %#x", A, b);
         sbis(mcu, A, b);
         return;
     }
     case OP_SBI: {
-        const u8 A = (op & 0x00F8) >> 3;
-        const u8 b = op & 0x0003;
+        const u8 A = MSH(op, 0x00F8, 3);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("SBI IO%u %#x", A, b);
         sbi(mcu, A, b);
         return;
     }
     case OP_CBI: {
-        const u8 A = (op & 0x00F8) >> 3;
-        const u8 b = op & 0x0003;
+        const u8 A = MSH(op, 0x00F8, 3);
+        const u8 b = MSK(op, 0x0003);
         PRINT_DEBUG("CBI IO%u %#x", A, b);
         cbi(mcu, A, b);
         return;
     }
     case OP_MOVW: {
-        const u8 d = (op & 0x00F0) >> 4;
-        const u8 r = op & 0x000F;
+        const u8 d = MSH(op, 0x00F0, 4);
+        const u8 r = MSK(op, 0x000F);
         PRINT_DEBUG("MOVW R%u R%u", d, r);
         movw(mcu, d, r);
         return;
@@ -2134,7 +2141,7 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
 
     switch (op & OP_MASK_8_4) {
     case OP_SER: {
-        const u8 d = (op & 0x00F0) >> 4;
+        const u8 d = MSH(op, 0x00F0, 4);
         PRINT_DEBUG("SER R%u", d);
         ser(mcu, d);
         return;
@@ -2146,29 +2153,29 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_9_1) {
     case OP_MULSU: {
-        const u8 d = (op & 0x0070) >> 4;
-        const u8 r = op & 0x0007;
+        const u8 d = MSH(op, 0x0070, 4);
+        const u8 r = MSK(op, 0x0007);
         PRINT_DEBUG("MULSU R%u R%u", d, r);
         mulsu(mcu, d, r);
         return;
     }
     case OP_FMUL: {
-        const u8 d = (op & 0x0070) >> 4;
-        const u8 r = op & 0x0007;
+        const u8 d = MSH(op, 0x0070, 4);
+        const u8 r = MSK(op, 0x0007);
         PRINT_DEBUG("FMUL R%u R%u", d, r);
         fmul(mcu, d, r);
         return;
     }
     case OP_FMULS: {
-        const u8 d = (op & 0x0070) >> 4;
-        const u8 r = op & 0x0007;
+        const u8 d = MSH(op, 0x0070, 4);
+        const u8 r = MSK(op, 0x0007);
         PRINT_DEBUG("FMULS R%u R%u", d, r);
         fmuls(mcu, d, r);
         return;
     }
     case OP_FMULSU: {
-        const u8 d = (op & 0x0070) >> 4;
-        const u8 r = op & 0x0007;
+        const u8 d = MSH(op, 0x0070, 4);
+        const u8 r = MSK(op, 0x0007);
         PRINT_DEBUG("FMULSU R%u R%u", d, r);
         fmulsu(mcu, d, r);
         return;
@@ -2176,20 +2183,14 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
     }
 
     switch (op & OP_MASK_9_4) {
-    case OP_COM: {
-        const u8 d = GET_REG_DIRECT_DST(op);
-        PRINT_DEBUG("COM R%u", d);
-        com(mcu, d);
-        return;
-    }
     case OP_BSET: {
-        const u8 s = (op & 0x0070) >> 4;
+        const u8 s = MSH(op, 0x0070, 4);
         PRINT_DEBUG("BSET %#x", s);
         bset(mcu, s);
         return;
     }
     case OP_BCLR: {
-        const u8 s = (op & 0x0070) >> 4;
+        const u8 s = MSH(op, 0x0070, 4);
         PRINT_DEBUG("BCLR %#x", s);
         bclr(mcu, s);
         return;
@@ -2247,35 +2248,35 @@ void avr_cycle(AVR_MCU *const restrict mcu) {
      **************************************************************************/
     switch (op & OP_MASK_Q) {
     case OP_LDD_Y: {
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
         PRINT_DEBUG("LDD_Y");
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
         ldd_y(mcu, d, q);
         return;
     }
     case OP_LDD_Z: {
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
         PRINT_DEBUG("LDD_Z");
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
         ldd_z(mcu, d, q);
         return;
     }
     case OP_STD_Y: {
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
         PRINT_DEBUG("STD_Y");
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
         std_y(mcu, d, q);
         return;
     }
     case OP_STD_Z: {
+        const u8 d = MSH(op, 0x01F0, 4);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
         PRINT_DEBUG("STD_Z");
-        const u8 d = GET_REG_IMMEDIATE_DST(op);
-        const u8 q = ((op & 0x2000) >> 8) | ((op & 0x0C00) >> 7) | (op & 0x0003);
         std_z(mcu, d, q);
         return;
     }
     }
 
-    LOG_ERROR("unknown op: %#x pc: %#x sp: %#x", op, mcu->pc, *mcu->sp);
+    LOG_ERROR("unknown op: %#x pc: %u sp: %u", op, mcu->pc, *mcu->sp);
     exit(EXIT_FAILURE);
 }

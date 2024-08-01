@@ -24,11 +24,21 @@
 #include <unistd.h>
 
 #include <avr.h>
+#include "avr_defs.h"
 #include "defs.h"
 
 #define VERSION "0.0.0"
 
 #define MAX_PATH 256
+
+#ifndef TODO_BAD_CODE
+
+static void print_bits(u8 byte) {
+    for (int i = 0; i < 8; i++)
+        PRINT_DEBUG("%c", GET_BIT(byte, i) + '0');
+}
+
+#endif
 
 static void print_version(void) {
     printf("avr-pi v%s\n", VERSION);
@@ -108,16 +118,14 @@ int main(int argc, char *argv[]) {
         avr_cycle(&mcu);
 
         PRINT_DEBUG("\t SREG: CZNVSHTI ");
-        for (int i = 0; i < 8; i++) {
-            PRINT_DEBUG("%u", GET_BIT(*mcu.sreg, i));
-        }
+        print_bits(*mcu.sreg);
         PRINT_DEBUG(" PC: %u SP: %u", mcu.pc, *mcu.sp);
-        PRINT_DEBUG(" Buadrate: %u", ((mcu.data[0xC5] & 0xF) << 8) | mcu.data[0xC4]);
-        PRINT_DEBUG(" I/O data: %c", mcu.data[0xC6]);
-        PRINT_DEBUG(" FLASH0: %u", mcu.flash[0]);
+        PRINT_DEBUG(" ");
+        print_bits(mcu.data[REG_PCMSK0]);
         PRINT_DEBUG("\n");
 
-        usleep(500);
+        if (mcu.data[REG_PCMSK0])
+            usleep(5000000);
     }
 
     return 0;
