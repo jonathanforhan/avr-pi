@@ -102,8 +102,6 @@ int main(int argc, char *argv[]) {
     close(fd);
     fd = -1;
 
-    // PRINT_DEBUG("%s\n", buf);
-
     avr_mcu_init(&mcu);
 
     if (avr_program(&mcu, buf) != AVR_OK) {
@@ -116,12 +114,6 @@ int main(int argc, char *argv[]) {
 
     for (;;) {
         avr_cycle(&mcu);
-
-        PRINT_DEBUG("\t SREG: CZNVSHTI ");
-        print_bits(*mcu.sreg);
-        PRINT_DEBUG(" PC: %u SP: %u", mcu.pc, *mcu.sp);
-        PRINT_DEBUG(" ");
-        print_bits(mcu.data[REG_PCMSK0]);
         PRINT_DEBUG("\n");
 
         if (mcu.data[REG_PCMSK0])
