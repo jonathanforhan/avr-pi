@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef _AVR__DEFS_H_
+#define _AVR__DEFS_H_
 
 #include <assert.h>
 #include <stdint.h>
@@ -70,3 +71,5 @@ typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
+
+#endif // _AVR__DEFS_H_

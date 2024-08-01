@@ -10,3 +10,10 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMAND ${CMAKE_CTEST_COMMAND} -R "^avr-pi-test$" --output-on-failure
 )
+
+add_custom_command(
+    TARGET avr-pi-test
+    POST_BUILD
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMAND bash -c "${CMAKE_CURRENT_SOURCE_DIR}/sketches/build.sh"
+)

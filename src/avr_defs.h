@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#ifndef _AVR__AVR_DEFS_H_
+#define _AVR__AVR_DEFS_H_
 
 /*******************************************************************************
  * Hex Record Type
@@ -235,3 +236,5 @@
 
 #define GET_REG_IMMEDIATE_DST(OP)   (((OP) & 0x00F0) >> 4)
 #define GET_REG_IMMEDIATE_CONST(OP) ((((OP) & 0x0F00) >> 4) | ((OP) & 0x000F))
+
+#endif // _AVR__AVR_DEFS_H_

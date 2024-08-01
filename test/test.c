@@ -47,7 +47,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
     // adc
     for (u16 i = 0; i < 256; i++) {
         for (u16 j = 0; j < 256; j++) {
-            PUT_BIT(mcu.sreg, SREG_C);
+            PUT_BIT(*mcu.sreg, SREG_C);
             mcu.reg[0] = i, mcu.reg[1] = j;
 
             u8 expected = mcu.reg[0] + mcu.reg[1] + 1;
@@ -120,7 +120,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
     // sbc
     for (u16 i = 0; i < 256; i++) {
         for (u16 j = 0; j < 256; j++) {
-            PUT_BIT(mcu.sreg, SREG_C);
+            PUT_BIT(*mcu.sreg, SREG_C);
             mcu.reg[0] = i, mcu.reg[1] = j;
 
             u8 expected = mcu.reg[0] - mcu.reg[1] - 1;
@@ -139,7 +139,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
     // sbci
     for (u16 i = 0; i < 256; i++) {
         for (u16 j = 0; j < 256; j++) {
-            PUT_BIT(mcu.sreg, SREG_C);
+            PUT_BIT(*mcu.sreg, SREG_C);
             mcu.reg[16] = i;
 
             u8 expected = mcu.reg[16] - j - 1;
@@ -597,7 +597,7 @@ static AVR_Result test_branch_instructions(void) {
 
         u16 real = mcu.pc;
 
-        if (real != expected || !GET_BIT(mcu.sreg, SREG_I)) {
+        if (real != expected || !GET_BIT(*mcu.sreg, SREG_I)) {
             LOG_ERROR("test failed reti: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
@@ -615,7 +615,7 @@ static AVR_Result test_branch_instructions(void) {
 
         cp(&mcu, 0, 1);
 
-        u8 real = GET_BIT(mcu.sreg, SREG_Z);
+        u8 real = GET_BIT(*mcu.sreg, SREG_Z);
 
         if (real != expected) {
             LOG_ERROR("test failed cp: real %#x, expected %#x", real, expected);
@@ -625,8 +625,8 @@ static AVR_Result test_branch_instructions(void) {
 
     // cpc
     for (int i = 0; i < 2; i++) {
-        PUT_BIT(mcu.sreg, SREG_C);
-        PUT_BIT(mcu.sreg, SREG_Z);
+        PUT_BIT(*mcu.sreg, SREG_C);
+        PUT_BIT(*mcu.sreg, SREG_Z);
 
         mcu.reg[0] = 1;
         mcu.reg[1] = i;
@@ -635,7 +635,7 @@ static AVR_Result test_branch_instructions(void) {
 
         cpc(&mcu, 0, 1);
 
-        u8 real = GET_BIT(mcu.sreg, SREG_Z);
+        u8 real = GET_BIT(*mcu.sreg, SREG_Z);
 
         if (real != expected) {
             LOG_ERROR("test failed cpc: real %#x, expected %#x", real, expected);
@@ -651,7 +651,7 @@ static AVR_Result test_branch_instructions(void) {
 
         cpi(&mcu, 0, i);
 
-        u8 real = GET_BIT(mcu.sreg, SREG_Z);
+        u8 real = GET_BIT(*mcu.sreg, SREG_Z);
 
         if (real != expected) {
             LOG_ERROR("test failed cpi: real %#x, expected %#x", real, expected);
@@ -673,11 +673,11 @@ static AVR_Result test_branch_instructions(void) {
 
     // brbs
     for (int i = 0; i < 8; i++) {
-        mcu.sreg = 0b11110000;
-        mcu.pc   = 0;
-        i8 k     = 42;
+        *mcu.sreg = 0b11110000;
+        mcu.pc    = 0;
+        i8 k      = 42;
 
-        u8 expected = GET_BIT(mcu.sreg, i) == 1 ? mcu.pc + k + 1 : mcu.pc + 1;
+        u8 expected = GET_BIT(*mcu.sreg, i) == 1 ? mcu.pc + k + 1 : mcu.pc + 1;
 
         brbs(&mcu, i, k);
 
@@ -691,11 +691,11 @@ static AVR_Result test_branch_instructions(void) {
 
     // brbc
     for (int i = 0; i < 8; i++) {
-        mcu.sreg = 0b11110000;
-        mcu.pc   = 0;
-        i8 k     = 42;
+        *mcu.sreg = 0b11110000;
+        mcu.pc    = 0;
+        i8 k      = 42;
 
-        u8 expected = GET_BIT(mcu.sreg, i) == 0 ? mcu.pc + k + 1 : mcu.pc + 1;
+        u8 expected = GET_BIT(*mcu.sreg, i) == 0 ? mcu.pc + k + 1 : mcu.pc + 1;
 
         brbc(&mcu, i, k);
 
@@ -812,11 +812,11 @@ static AVR_Result test_bit_and_bit_test_instructions(void) {
 
     // bset
     for (int i = 0; i < 8; i++) {
-        u8 expected = mcu.sreg | (1 << i);
+        u8 expected = *mcu.sreg | (1 << i);
 
         bset(&mcu, i);
 
-        u8 real = mcu.sreg;
+        u8 real = *mcu.sreg;
 
         if (real != expected) {
             LOG_ERROR("test failed bset: real %#x, expected %#x", real, expected);
@@ -826,11 +826,11 @@ static AVR_Result test_bit_and_bit_test_instructions(void) {
 
     // bclr
     for (int i = 0; i < 8; i++) {
-        u8 expected = mcu.sreg & ~(1 << i);
+        u8 expected = *mcu.sreg & ~(1 << i);
 
         bclr(&mcu, i);
 
-        u8 real = mcu.sreg;
+        u8 real = *mcu.sreg;
 
         if (real != expected) {
             LOG_ERROR("test failed bclr: real %#x, expected %#x", real, expected);
@@ -841,13 +841,13 @@ static AVR_Result test_bit_and_bit_test_instructions(void) {
     // bst
     for (int i = 0; i < 8; i++) {
         mcu.reg[0] = (1 << i);
-        mcu.sreg   = 0;
+        *mcu.sreg  = 0;
 
         u8 expected = 1 << SREG_T;
 
         bst(&mcu, 0, i);
 
-        u8 real = mcu.sreg;
+        u8 real = *mcu.sreg;
 
         if (real != expected) {
             LOG_ERROR("test failed bst: real %#x, expected %#x", real, expected);
@@ -858,10 +858,10 @@ static AVR_Result test_bit_and_bit_test_instructions(void) {
     // bld
     for (int i = 0; i < 8; i++) {
         mcu.reg[0] = 0;
-        mcu.sreg   = 0;
+        *mcu.sreg  = 0;
 
         const u8 T = i % 2;
-        SET_BIT(mcu.sreg, SREG_T, T);
+        SET_BIT(*mcu.sreg, SREG_T, T);
 
         u8 expected = mcu.reg[0];
         SET_BIT(expected, i, T);
@@ -953,9 +953,8 @@ static AVR_Result test_data_transfer_instructions(void) {
 
     // lpm
     {
-#if 0
-        *(u16 *)&mcu.reg[REG_Z] = 256;
-        mcu.flash[256]          = 42;
+        *(u16 *)&mcu.reg[REG_Z] = 512;
+        mcu.flash[512 / 2]      = 42;
 
         u8 expected = 42;
 
@@ -967,7 +966,6 @@ static AVR_Result test_data_transfer_instructions(void) {
             LOG_ERROR("test failed lpm: real %#x, expected %#x", real, expected);
             return AVR_ERROR;
         }
-#endif
     }
 
     // in
@@ -998,7 +996,7 @@ static AVR_Result test_data_transfer_instructions(void) {
 
         push(&mcu, 0);
 
-        u8 real = mcu.sram[*mcu.sp + 1];
+        u8 real = mcu.data[*mcu.sp + 1];
 
         if (real != expected) {
             LOG_ERROR("test failed push: real %#x, expected %#x", real, expected);
@@ -1019,46 +1017,6 @@ static AVR_Result test_data_transfer_instructions(void) {
             return AVR_ERROR;
         }
     }
-
-    return AVR_OK;
-}
-
-static AVR_Result avr_run_tests(void) {
-    AVR_MCU mcu;
-    avr_mcu_init(&mcu);
-
-    // call
-    for (u32 i = 0; i < (sizeof(mcu.data) / 2); i++) {
-        u16 expected     = i;
-        u16 expected_sp  = *mcu.sp - 2;
-        u16 expected_stk = i + 2;
-
-        call(&mcu, i);
-
-        u16 real     = mcu.pc;
-        u16 real_sp  = *mcu.sp;
-        u16 real_stk = *(u16 *)&mcu.sram[*mcu.sp];
-
-        if (real != expected) {
-            LOG_ERROR("test failed call: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        } else if (real_sp != expected_sp) {
-            LOG_ERROR("test failed call: real_sp %#x, expected_sp %#x", real_sp, expected_sp);
-            return AVR_ERROR;
-        } else if (real_stk != expected_stk) {
-            LOG_ERROR("test failed call: real_stk %#x, expected_stk %#x", real_stk, expected_stk);
-            return AVR_ERROR;
-        }
-    }
-
-    // lac
-    // TODO
-
-    // las
-    // TODO
-
-    // lat
-    // TODO
 
     return AVR_OK;
 }
