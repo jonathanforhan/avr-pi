@@ -32,13 +32,6 @@
 #endif
 #endif
 
-static inline u8 xstr2byte(const char *restrict s) {
-    u8 b = 0;
-    b |= (isdigit(s[0]) ? s[0] - '0' : isupper(s[0]) ? s[0] - 'A' + 10 : s[0] - 'a' + 10) << 4;
-    b |= (isdigit(s[1]) ? s[1] - '0' : isupper(s[1]) ? s[1] - 'A' + 10 : s[1] - 'a' + 10) << 0;
-    return b;
-}
-
 /*******************************************************************************
  * Arithmetic and Logic Instructions
  ******************************************************************************/
@@ -734,7 +727,7 @@ static inline void call(AVR_MCU *restrict mcu, u16 k) {
     ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
 
     // STACK <- PC + 2
-    *((u16 *)&mcu->data[*mcu->sp]) = mcu->pc + 2;
+    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 2;
 
     // SP <- PC - 2
     *mcu->sp -= 2;
@@ -749,7 +742,7 @@ static inline void ret(AVR_MCU *restrict mcu) {
     *mcu->sp += 2;
 
     // PC(15:0) <- STACK
-    mcu->pc = *((u16 *)&mcu->data[*mcu->sp]);
+    mcu->pc = *(u16 *)&mcu->data[*mcu->sp];
 }
 
 // reti - return from interrupt
@@ -758,7 +751,7 @@ static inline void reti(AVR_MCU *restrict mcu) {
     *mcu->sp += 2;
 
     // PC(15:0) <- STACK
-    mcu->pc = *((u16 *)&mcu->data[*mcu->sp]);
+    mcu->pc = *(u16 *)&mcu->data[*mcu->sp];
 
     // I = 1
     PUT_BIT(*mcu->sreg, SREG_I);
@@ -1575,6 +1568,13 @@ static inline void break_(AVR_MCU *restrict mcu) {
     mcu->pc++;
 }
 
+static inline u8 xstr2byte(const char *restrict s) {
+    u8 b = 0;
+    b |= (isdigit(s[0]) ? s[0] - '0' : isupper(s[0]) ? s[0] - 'A' + 10 : s[0] - 'a' + 10) << 4;
+    b |= (isdigit(s[1]) ? s[1] - '0' : isupper(s[1]) ? s[1] - 'A' + 10 : s[1] - 'a' + 10);
+    return b;
+}
+
 void avr_mcu_init(AVR_MCU *restrict mcu) {
     memset(mcu, 0, sizeof(*mcu));
 
@@ -1642,7 +1642,7 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
 }
 
 void avr_cycle(AVR_MCU *const restrict mcu) {
-    ASSERT_BOUNDS(*mcu->sp, 0, AVR_MCU_RAMEND);
+    ASSERT_BOUNDS(*mcu->sp, 0, AVR_MCU_DATA_SIZE);
 
     const u16 op = mcu->flash[mcu->pc];
 

@@ -70,7 +70,7 @@ extern "C" {
  * @def AVR_MCU_DATA_SIZE
  * @brief Size of data section in MCU, 2304 bytes.
  */
-#define AVR_MCU_DATA_SIZE 0x08FF
+#define AVR_MCU_DATA_SIZE 0x0900
 
 /**
  * @def AVR_MCU_FLASH_SIZE
@@ -82,13 +82,13 @@ extern "C" {
  * @def AVR_MCU_EEPROM_SIZE
  * @brief Size of eeprom section in MCU, 1KB.
  */
-#define AVR_MCU_EEPROM_SIZE 0x08FF
+#define AVR_MCU_EEPROM_SIZE 0x0400
 
 /**
  * @def AVR_MCU_RAMEND
- * @brief End of SRAM.
+ * @brief End of all SRAM (registers, io, and internal).
  */
-#define AVR_MCU_RAMEND 0x0800
+#define AVR_MCU_RAMEND (AVR_MCU_DATA_SIZE - 1)
 
 /**
  * @brief Result type for avr_* functions.

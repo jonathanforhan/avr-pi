@@ -105,8 +105,8 @@ int main(int argc, char *argv[]) {
     buf = NULL;
 
     for (;;) {
-        usleep(500);
         avr_cycle(&mcu);
+
         PRINT_DEBUG("\t SREG: CZNVSHTI ");
         for (int i = 0; i < 8; i++) {
             PRINT_DEBUG("%u", GET_BIT(*mcu.sreg, i));
@@ -114,7 +114,10 @@ int main(int argc, char *argv[]) {
         PRINT_DEBUG(" PC: %u SP: %u", mcu.pc, *mcu.sp);
         PRINT_DEBUG(" Buadrate: %u", ((mcu.data[0xC5] & 0xF) << 8) | mcu.data[0xC4]);
         PRINT_DEBUG(" I/O data: %c", mcu.data[0xC6]);
+        PRINT_DEBUG(" FLASH0: %u", mcu.flash[0]);
         PRINT_DEBUG("\n");
+
+        usleep(500);
     }
 
     return 0;
