@@ -996,7 +996,7 @@ static AVR_Result test_data_transfer_instructions(void) {
 
         push(&mcu, 0);
 
-        u8 real = mcu.data[*mcu.sp + 1];
+        u8 real = mcu.data[*mcu.sp];
 
         if (real != expected) {
             LOG_ERROR("test failed push: real %#x, expected %#x", real, expected);

@@ -700,11 +700,11 @@ static inline void rcall(AVR_MCU *restrict mcu, i16 k) {
     k = I12_TO_I16(k);
     ASSERT_BOUNDS(k, -2048, 2047);
 
-    // STACK <- PC + 1
-    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 1;
-
     // SP <- SP - 2
     *mcu->sp -= 2;
+
+    // STACK <- PC + 1
+    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 1;
 
     // PC <- PC + k + 1
     mcu->pc += k + 1;
@@ -712,11 +712,11 @@ static inline void rcall(AVR_MCU *restrict mcu, i16 k) {
 
 // icall indirect call to subroutine
 static inline void icall(AVR_MCU *restrict mcu) {
-    // STACK <- PC + 1
-    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 1;
-
     // SP <- SP - 2
     *mcu->sp -= 2;
+
+    // STACK <- PC + 1
+    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 1;
 
     // PC(15:0) <- Z(15:0)
     mcu->pc = *(u16 *)&mcu->reg[REG_Z];
@@ -726,11 +726,11 @@ static inline void icall(AVR_MCU *restrict mcu) {
 static inline void call(AVR_MCU *restrict mcu, u16 k) {
     ASSERT_BOUNDS(k, 0, sizeof(mcu->flash) - 1);
 
-    // STACK <- PC + 2
-    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 2;
-
     // SP <- PC - 2
     *mcu->sp -= 2;
+
+    // STACK <- PC + 2
+    *(u16 *)&mcu->data[*mcu->sp] = mcu->pc + 2;
 
     // PC <- k
     mcu->pc = k;
@@ -738,20 +738,20 @@ static inline void call(AVR_MCU *restrict mcu, u16 k) {
 
 // ret - return from subroutine
 static inline void ret(AVR_MCU *restrict mcu) {
-    // SP <- PC + 2
-    *mcu->sp += 2;
-
     // PC(15:0) <- STACK
     mcu->pc = *(u16 *)&mcu->data[*mcu->sp];
+
+    // SP <- PC + 2
+    *mcu->sp += 2;
 }
 
 // reti - return from interrupt
 static inline void reti(AVR_MCU *restrict mcu) {
-    // SP <- PC + 2
-    *mcu->sp += 2;
-
     // PC(15:0) <- STACK
     mcu->pc = *(u16 *)&mcu->data[*mcu->sp];
+
+    // SP <- PC + 2
+    *mcu->sp += 2;
 
     // I = 1
     PUT_BIT(*mcu->sreg, SREG_I);
@@ -1516,11 +1516,11 @@ static inline void push(AVR_MCU *restrict mcu, u8 r) {
 
     const u8 *Rr = &mcu->reg[r];
 
-    // STACK <- Rr
-    mcu->data[*mcu->sp] = *Rr;
-
     // SP <- SP - 1
     (*mcu->sp)--;
+
+    // STACK <- Rr
+    mcu->data[*mcu->sp] = *Rr;
 
     // PC <- PC + 1
     mcu->pc++;
@@ -1532,11 +1532,11 @@ static inline void pop(AVR_MCU *restrict mcu, u8 d) {
 
     u8 *Rd = &mcu->reg[d];
 
-    // SP <- SP + 1
-    (*mcu->sp)++;
-
     // Rd <- STACK
     *Rd = mcu->data[*mcu->sp];
+
+    // SP <- SP + 1
+    (*mcu->sp)++;
 
     // PC <- PC + 1
     mcu->pc++;
