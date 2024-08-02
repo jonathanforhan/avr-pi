@@ -30,6 +30,27 @@
 extern "C" {
 #endif
 
+#ifndef F_CLK
+/**
+ * @def AVR_MCU_CLK_SPEED
+ * @brief Clock speed of 16MHz
+ */
+#define AVR_MCU_CLK_SPEED 16000000L
+// #define AVR_MCU_CLK_SPEED 16L
+#else
+/**
+ * @def AVR_MCU_CLK_SPEED
+ * @brief Clock speed of F_CLK as specified by Arduino IDE
+ */
+#define AVR_MCU_CLK_SPEED F_CLK
+#endif
+
+/**
+ * @def AVR_MCU_CLK_PERIOD
+ * @brief Clock period in nanoseconds
+ */
+#define AVR_MCU_CLK_PERIOD (1000000000L / AVR_MCU_CLK_SPEED)
+
 /**
  * @def AVR_MCU_SREG_OFFSET
  * @brief Data offset used by status register.
@@ -148,8 +169,11 @@ typedef enum AVR_Result {
  * +----------------------+
  */
 typedef struct AVR_MCU {
+    /** @brief System clock. */
+    _Bool clk;
+
     /** @brief Program counter. */
-    uint16_t pc;
+    uint_fast16_t pc;
 
     /** @brief Status Register. */
     uint8_t *sreg;
@@ -200,10 +224,25 @@ void avr_mcu_init(AVR_MCU *restrict mcu);
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex);
 
 /**
- * @brief Cycle the CPU, fetching and executing one instruction from programmed flash.
+ * @brief Execute one instruction one instruction from programmed flash.
+ *
+ * Execute does not cycle the CPU clock, instead it returns the number of cycles an operations took,
+ * this is becuase special timing must be taken into account.
+ *
+ * @param mcu Microcontroller Emulator
+ * @return Number of cycles taken during execution
+ */
+int avr_execute(AVR_MCU *restrict mcu);
+
+/**
+ * @brief Cycle the CPU clock one time.
  *
  * @param mcu Microcontroller Emulator
  */
 void avr_cycle(AVR_MCU *restrict mcu);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _AVR__AVR_H_

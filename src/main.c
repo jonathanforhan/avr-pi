@@ -21,24 +21,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <avr.h>
 #include "avr_defs.h"
 #include "defs.h"
 
-#define VERSION "0.0.0"
+#define VERSION  "0.0.0"
+#define MAX_PATH 260
 
-#define MAX_PATH 256
+#ifndef NDEBUG
+#define LOG_NAME  "avr-pi.log"
+#define ELOG_NAME "avr-pi-error.log"
 
-#ifndef TODO_BAD_CODE
+static void setup_log_files(void) {
+    FILE *f = fopen(LOG_NAME, "w");
+    assert(f);
+    stdout = f;
 
-static void print_bits(u8 byte) {
-    for (int i = 0; i < 8; i++)
-        PRINT_DEBUG("%c", GET_BIT(byte, i) + '0');
+    FILE *e = fopen(ELOG_NAME, "w");
+    assert(e);
+    stderr = e;
 }
-
 #endif
+
+// can only be used when times are within +/- 1sec (our clk period will never be that long)
+#define diff_timespec(T0, T1) (1000000000L * ((T1).tv_sec - (T0).tv_sec) + ((T1).tv_nsec - (T0).tv_nsec))
+
+// error range / 2
+#define ERR_RANGE_2 4
+
+static AVR_MCU mcu;
 
 static void print_version(void) {
     printf("avr-pi v%s\n", VERSION);
@@ -52,14 +66,42 @@ static void print_help(void) {
         "\tavr-pi {file}.hex\tExecute a compiled AVR hex file.\n");
 }
 
+static inline void run(void) {
+    struct timespec t0, t1;
+    int cycles;
+    long err = 0; // measures accumulation of error each iteration
+
+    for (;;) {
+        (void)clock_gettime(CLOCK_MONOTONIC, &t0);
+
+        cycles = avr_execute(&mcu);
+        PRINT_DEBUG("\n");
+
+        // spead approximately one clk period on each cycle
+        // errors are tracked and accounted for
+        while (cycles) {
+            do {
+                (void)clock_gettime(CLOCK_MONOTONIC, &t1);
+            } while (diff_timespec(t0, t1) - (AVR_MCU_CLK_PERIOD - err) < ERR_RANGE_2);
+            err = diff_timespec(t0, t1) - (AVR_MCU_CLK_PERIOD - err);
+
+            avr_cycle(&mcu);
+
+            cycles--;
+            if (cycles) {
+                (void)clock_gettime(CLOCK_MONOTONIC, &t0);
+            }
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
-    int fd = -1;
-    struct stat st;
     char *buf = NULL;
-    AVR_MCU mcu;
+    int fd    = -1;
+    struct stat st;
 
     if (argc < 2) {
-        goto err;
+        goto error;
     } else if (strncmp(argv[1], "--help", 6) == 0) {
         print_help();
         return 0;
@@ -68,33 +110,33 @@ int main(int argc, char *argv[]) {
         return 0;
     } else if (strnlen(argv[1], MAX_PATH) <= 4 || strcasecmp(strrchr(argv[1], '.'), ".hex") != 0) {
         LOG_ERROR("invalid hex file");
-        goto err;
+        goto error;
     }
 
     fd = open(argv[1], O_RDONLY);
     if (fd < 0) {
         LOG_ERROR("could not read file %s", argv[1]);
-        goto err;
+        goto error;
     }
 
     if (fstat(fd, &st) < 0) {
-        LOG_ERROR("could not read file %s", argv[1]);
-        goto err;
+        LOG_ERROR("could not read input file size");
+        goto error;
     }
 
     buf = malloc(st.st_size + 1); // +1 NULL byte
     if (buf == NULL) {
         LOG_ERROR("allocation failure");
-        goto err;
+        goto error;
     }
 
     switch (read(fd, buf, st.st_size)) {
     case -1:
         LOG_ERROR("could not read file %s", argv[1]);
-        goto err;
+        goto error;
     case 0:
         LOG_ERROR("file is empty %s", argv[1]);
-        goto err;
+        goto error;
     default:
         buf[st.st_size] = '\0';
     }
@@ -102,27 +144,25 @@ int main(int argc, char *argv[]) {
     close(fd);
     fd = -1;
 
+#ifndef NDEBUG
+    setup_log_files();
+#endif
+
     avr_mcu_init(&mcu);
 
     if (avr_program(&mcu, buf) != AVR_OK) {
         LOG_ERROR("failed to write program to flash");
-        goto err;
+        goto error;
     }
 
     free(buf);
     buf = NULL;
 
-    for (;;) {
-        avr_cycle(&mcu);
-        PRINT_DEBUG("\n");
-
-        if (mcu.data[REG_PCMSK0])
-            usleep(5000000);
-    }
+    run();
 
     return 0;
 
-err:
+error:
     close(fd);
     free(buf);
     print_help();

@@ -228,8 +228,10 @@
     (((OP) & OP_MASK_7_3) == OP_JMP || ((OP) & OP_MASK_7_3) == OP_CALL || ((OP) & OP_MASK_7_4) == OP_STS || \
      ((OP) & OP_MASK_7_4) == OP_LDS)
 
+#define IS_IO_SPACE(ADDR) ((ADDR) >= 0x20 && (ADDR) < 0x60);
+
 #define MSK(OP, MSK)     ((OP) & (MSK))           /* mask without shift */
-#define MSH(OP, MSK, SH) (((OP) & (MSK)) >> (SH)) /* mask and shift */
+#define MSH(OP, MSK, SH) (((OP) & (MSK)) >> (SH)) /* mask with shift */
 
 /*******************************************************************************
  * IO Register Offsets
