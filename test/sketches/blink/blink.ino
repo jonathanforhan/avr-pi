@@ -3,9 +3,8 @@ void setup() {
 }
 
 void loop() {
-    if (millis() % 2000 > 1000) {
-        digitalWrite(12, HIGH);
-    } else {
-        digitalWrite(12, LOW);
-    }
+    digitalWrite(12, HIGH);
+    delay(500);
+    digitalWrite(12, LOW);
+    delay(500);
 }
