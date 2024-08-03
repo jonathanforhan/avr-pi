@@ -13,9 +13,6 @@
             "architecture": {
                 "value": "x64",
                 "strategy": "external"
-            },
-            "cacheVariables": {
-                "CMAKE_C_COMPILER": "gcc"
             }
         },
         {

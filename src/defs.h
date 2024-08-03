@@ -26,15 +26,15 @@
 #define LOG_ERROR(MSG, ...) ((void)fprintf(stderr, "%s:%d ERROR " MSG "\n", __func__, __LINE__, ##__VA_ARGS__))
 
 #ifdef NDEBUG
-#define LOG_DEBUG(MSG, ...) ((void)0)
+#define LOG_DEBUG(...) ((void)0)
 #else
-#define LOG_DEBUG(MSG, ...) ((void)fprintf(stdout, "%s:%d DEBUG " MSG "\n", __func__, __LINE__, ##__VA_ARGS__))
+#define LOG_DEBUG(MSG, ...) ((void)fprintf(stderr, "%s:%d DEBUG " MSG "\n", __func__, __LINE__, ##__VA_ARGS__))
 #endif
 
 #ifdef NDEBUG
 #define PRINT_DEBUG(...) ((void)0)
 #else
-#define PRINT_DEBUG(...) ((void)fprintf(stdout, __VA_ARGS__))
+#define PRINT_DEBUG(...) ((void)fprintf(stderr, __VA_ARGS__))
 #endif
 
 // get Nth bit from X returns 0 or 1

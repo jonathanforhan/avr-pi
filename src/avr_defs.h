@@ -230,7 +230,7 @@
 
 #define IS_IO_SPACE(ADDR) ((ADDR) >= 0x20 && (ADDR) < 0x60);
 
-#define MSK(OP, MSK)     ((OP) & (MSK))           /* mask without shift */
+#define MSK(OP, MSK)     ((OP) & (MSK))           /* mask */
 #define MSH(OP, MSK, SH) (((OP) & (MSK)) >> (SH)) /* mask with shift */
 
 /*******************************************************************************
@@ -322,7 +322,7 @@
 // RESERVED 0x8C - 0xAF
 #define REG_TCCR2A 0xB0
 #define REG_TCCR2B 0xB1
-#define REG_TCNT3  0xB1
+#define REG_TCNT2  0xB2
 #define REG_OCR2A  0xB3
 #define REG_OCR2B  0xB4
 // RESERVED 0xB5
@@ -343,5 +343,76 @@
 #define REG_UBRR0H 0xC5
 #define REG_UDR0   0xC6
 // RESERVED 0xC7 - 0xFF
+
+// limited set of useful bits
+#define BIT_TOV0  0
+#define BIT_OCF0A 1
+#define BIT_OCF0B 2
+#define BIT_TOV1  0
+#define BIT_ICF1  5
+#define BIT_OCF1A 1
+#define BIT_OCF1B 2
+#define BIT_TOV2  0
+#define BIT_OCF2A 1
+#define BIT_OCF2B 2
+#define BIT_PCIF0 0
+#define BIT_PCIF1 1
+#define BIT_PCIF2 2
+#define BIT_INTF0 0
+#define BIT_INTF1 1
+#define BIT_INT0  0
+#define BIT_INT1  1
+#define BIT_EERE  0
+#define BIT_EEPE  1
+#define BIT_EEMPE 2
+#define BIT_EERIE 3
+#define BIT_EEPM0 4
+#define BIT_EEPM1 5
+
+/*******************************************************************************
+ * Sleep Modes
+ *
+ * Bit 0 : SE (sleep enable)
+ * Bit 1 : SM0
+ * Bit 2 : SM1
+ * Bit 3 : SM2
+ ******************************************************************************/
+#define SLEEP_IDLE             0x01 // 0001
+#define SLEEP_ADC_NR           0x03 // 0011
+#define SLEEP_POWER_DOWN       0x05 // 0101
+#define SLEEP_POWER_SAVE       0x07 // 0111
+// RESERVED 0x09 - 0x0A
+#define SLEEP_STANDBY          0x0C // 1101  (UNUSED)
+#define SLEEP_EXTERNAL_STANDBY 0x0F // 1111  (UNUSED)
+
+/*******************************************************************************
+ * Interrupt Vectors
+ ******************************************************************************/
+#define IV_RESET        0x0000 // External pin, power-on reset, brown-out reset and watchdog system reset
+#define IV_INT0         0x0002 // External interrupt request 0
+#define IV_INT1         0x0004 // External interrupt request 1
+#define IV_PCINT0       0x0006 // Pin change interrupt request 0
+#define IV_PCINT1       0x0008 // Pin change interrupt request 1
+#define IV_PCINT2       0x000A // Pin change interrupt request 2
+#define IV_WDT          0x000C // Watchdog time-out interrupt
+#define IV_TIMER2_COMPA 0x000E // Timer/Counter2 compare match A
+#define IV_TIMER2_COMPB 0x0010 // Timer/Counter2 compare match B
+#define IV_TIMER2_OVF   0x0012 // Timer/Counter2 overflow
+#define IV_TIMER1_CAPT  0x0014 // Timer/Counter1 capture event
+#define IV_TIMER1_COMPA 0x0016 // Timer/Counter1 compare match A
+#define IV_TIMER1_COMPB 0x0018 // Timer/Counter1 compare match B
+#define IV_TIMER1_OVF   0x001A // Timer/Counter1 overflow
+#define IV_TIMER0_COMPA 0x001C // Timer/Counter0 compare match A
+#define IV_TIMER0_COMPB 0x001E // Timer/Counter0 compare match B
+#define IV_TIMER0_OVF   0x0020 // Timer/Counter0 overflow
+#define IV_SPI_STC      0x0022 // SPI serial transfer complete
+#define IV_USART_RX     0x0024 // USART Rx complete
+#define IV_USART_UDRE   0x0026 // USART, data register empty
+#define IV_USART_TX     0x0028 // USART, Tx complete
+#define IV_ADC          0x002A // ADC conversion complete
+#define IV_EE_READY     0x002C // EEPROM ready
+#define IV_ANALONG_COMP 0x002E // Analog comparator
+#define IV_TWI          0x0030 // 2-wire serial interface
+#define IV_SPM_READY    0x0032 // Store program memory ready
 
 #endif // _AVR__AVR_DEFS_H_

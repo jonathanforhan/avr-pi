@@ -30,21 +30,7 @@
 
 #define VERSION  "0.0.0"
 #define MAX_PATH 260
-
-#ifndef NDEBUG
-#define LOG_NAME  "avr-pi.log"
-#define ELOG_NAME "avr-pi-error.log"
-
-static void setup_log_files(void) {
-    FILE *f = fopen(LOG_NAME, "w");
-    assert(f);
-    stdout = f;
-
-    FILE *e = fopen(ELOG_NAME, "w");
-    assert(e);
-    stderr = e;
-}
-#endif
+#define LOG_NAME "avr-pi.log"
 
 // can only be used when times are within +/- 1sec (our clk period will never be that long)
 #define diff_timespec(T0, T1) (1000000000L * ((T1).tv_sec - (T0).tv_sec) + ((T1).tv_nsec - (T0).tv_nsec))
@@ -87,11 +73,19 @@ static inline void run(void) {
 
             avr_cycle(&mcu);
 
+            cycles += avr_interrupt(&mcu);
+
             cycles--;
             if (cycles) {
                 (void)clock_gettime(CLOCK_MONOTONIC, &t0);
             }
         }
+
+        static int last;
+        if (GET_BIT(mcu.data[REG_PORTB], 4) != last) {
+            printf("%d\n", GET_BIT(mcu.data[REG_PORTB], 4));
+        }
+        last = GET_BIT(mcu.data[REG_PORTB], 4);
     }
 }
 
@@ -144,9 +138,8 @@ int main(int argc, char *argv[]) {
     close(fd);
     fd = -1;
 
-#ifndef NDEBUG
-    setup_log_files();
-#endif
+    // logging goes to filesystem (DEBUG BUILD ONLY)
+    assert((stderr = fopen(LOG_NAME, "w"))); // NOLINT
 
     avr_mcu_init(&mcu);
 

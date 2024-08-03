@@ -19,31 +19,99 @@
 /**
  * @file avr.h
  * @brief Emulates ATmega328P.
+ *
+ * AVR 8-bit Status Register contain arithemetic state.
+ *
+ * SREG
+ * +---+---+---+---+---+---+---+---+
+ * | C | Z | N | V | S | H | T | I | flag
+ * +---+---+---+---+---+---+---+---+
+ *   0   1   2   3   4   5   6   7   bits
+ *
+ * C : Carry Flag
+ * Z : Zero Flag
+ * N : Negative Flag
+ * V : Two's complement overflow indicator
+ * S : N ^ V, for signed tests
+ * H : Hald Carry Flag
+ * T : Transfer bit used by BLD and BST instructions
+ * I : Global Interrupt Enable/Disable Flag
+ *
+ * AVR CPU General Purpose Working Registers
+ *
+ * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
+ * | R0  | R1  | R2  | R3  | R4  | R5  | R6  | R7  | R8  | R9  | R10 | R11 | R12 | R13 | R14 | R15 |
+ * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
+ * | R16 | R17 | R18 | R19 | R20 | R21 | R22 | R23 | R24 | R25 | R26 | R27 | R28 | R29 | R30 | R31 |
+ * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
+ *
+ * RX = R27:R26
+ * RY = R29:R28
+ * RZ = R31:R30
+ *
+ * AVR Data Memory Map
+ *
+ * +======================+
+ * |     Data Memory      | 0x0000 - 0x08FF
+ * +======================+
+ * |     32 Registers     | 0x0000 - 0x001F
+ * +----------------------+
+ * |   64 IO Registers    | 0x0020 - 0x005F
+ * +----------------------+
+ * | 160 Ext IO Registers | 0x0060 - 0x00FF
+ * +----------------------+
+ * |     Interal SRAM     | 0x0100 - 0x08FF
+ * +----------------------+
+ *
+ * AVR Interrupts
+ *
+ * The first 26 words of flash contain interrupt vectors
+ *
+ * Vec #  Addr     Source         Interrupt Description
+ * +----+--------+--------------+-------------------------------
+ * | 1  | 0x0000 | RESET        | External pin, power-on reset, brown-out reset and watchdog system reset
+ * | 2  | 0x0002 | INT0         | External interrupt request 0
+ * | 3  | 0x0004 | INT1         | External interrupt request 1
+ * | 4  | 0x0006 | PCINT0       | Pin change interrupt request 0
+ * | 5  | 0x0008 | PCINT1       | Pin change interrupt request 1
+ * | 6  | 0x000A | PCINT2       | Pin change interrupt request 2
+ * | 7  | 0x000C | WDT          | Watchdog time-out interrupt
+ * | 8  | 0x000E | TIMER2 COMPA | Timer/Counter2 compare match A
+ * | 9  | 0x0010 | TIMER2 COMPB | Timer/Counter2 compare match B
+ * | 10 | 0x0012 | TIMER2 OVF   | Timer/Counter2 overflow
+ * | 11 | 0x0014 | TIMER1 CAPT  | Timer/Counter1 capture event
+ * | 12 | 0x0016 | TIMER1 COMPA | Timer/Counter1 compare match A
+ * | 13 | 0x0018 | TIMER1 COMPB | Timer/Counter1 compare match B
+ * | 14 | 0x001A | TIMER1 OVF   | Timer/Counter1 overflow
+ * | 15 | 0x001C | TIMER0 COMPA | Timer/Counter0 compare match A
+ * | 16 | 0x001E | TIMER0 COMPB | Timer/Counter0 compare match B
+ * | 17 | 0x0020 | TIMER0 OVF   | Timer/Counter0 overflow
+ * | 18 | 0x0022 | SPI, STC     | SPI serial transfer complete
+ * | 19 | 0x0024 | USART, RX    | USART Rx complete
+ * | 20 | 0x0026 | USART, UDRE  | USART, data register empty
+ * | 21 | 0x0028 | USART, TX    | USART, Tx complete
+ * | 22 | 0x002A | ADC          | ADC conversion complete
+ * | 23 | 0x002C | EE READY     | EEPROM ready
+ * | 24 | 0x002E | ANALOG COMP  | Analog comparator
+ * | 25 | 0x0030 | TWI          | 2-wire serial interface
+ * | 26 | 0x0032 | SPM READY    | Store program memory ready
  */
 
 #ifndef _AVR__AVR_H_
 #define _AVR__AVR_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef F_CLK
 /**
  * @def AVR_MCU_CLK_SPEED
  * @brief Clock speed of 16MHz
  */
-#define AVR_MCU_CLK_SPEED 16000000L
-// #define AVR_MCU_CLK_SPEED 16L
-#else
-/**
- * @def AVR_MCU_CLK_SPEED
- * @brief Clock speed of F_CLK as specified by Arduino IDE
- */
-#define AVR_MCU_CLK_SPEED F_CLK
-#endif
+#define AVR_MCU_CLK_SPEED 16320000L
 
 /**
  * @def AVR_MCU_CLK_PERIOD
@@ -113,6 +181,8 @@ extern "C" {
 
 /**
  * @brief Result type for avr_* functions.
+ *
+ * @copydoc avr.h
  */
 typedef enum AVR_Result {
     /** @brief Returned on success. */
@@ -124,53 +194,13 @@ typedef enum AVR_Result {
 
 /**
  * @brief AVR Microcontroller.
- *
- * AVR 8-bit Status Register contain arithemetic state.
- *
- * SREG
- * +---+---+---+---+---+---+---+---+
- * | C | Z | N | V | S | H | T | I | flag
- * +---+---+---+---+---+---+---+---+
- *   0   1   2   3   4   5   6   7   bits
- *
- * C : Carry Flag
- * Z : Zero Flag
- * N : Negative Flag
- * V : Two's complement overflow indicator
- * S : N ^ V, for signed tests
- * H : Hald Carry Flag
- * T : Transfer bit used by BLD and BST instructions
- * I : Global Interrupt Enable/Disable Flag
- *
- * AVR CPU General Purpose Working Registers
- *
- * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
- * | R0  | R1  | R2  | R3  | R4  | R5  | R6  | R7  | R8  | R9  | R10 | R11 | R12 | R13 | R14 | R15 |
- * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
- * | R16 | R17 | R18 | R19 | R20 | R21 | R22 | R23 | R24 | R25 | R26 | R27 | R28 | R29 | R30 | R31 |
- * +-----+-----+-----+-----+-----+-----+-----+------+----+-----+-----+-----+-----+-----+-----+-----+
- *
- * RX = R27:R26
- * RY = R29:R28
- * RZ = R31:R30
- *
- * AVR Data Memory Map
- *
- * +======================+
- * |     Data Memory      | 0x0000 - 0x08FF
- * +======================+
- * |     32 Registers     | 0x0000 - 0x001F
- * +----------------------+
- * |   64 IO Registers    | 0x0020 - 0x005F
- * +----------------------+
- * | 160 Ext IO Registers | 0x0060 - 0x00FF
- * +----------------------+
- * |     Interal SRAM     | 0x0100 - 0x08FF
- * +----------------------+
  */
 typedef struct AVR_MCU {
+    /** @brief Idle mode enabled. */
+    bool idle;
+
     /** @brief System clock. */
-    _Bool clk;
+    uint16_t clk;
 
     /** @brief Program counter. */
     uint_fast16_t pc;
@@ -226,13 +256,26 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex);
 /**
  * @brief Execute one instruction one instruction from programmed flash.
  *
- * Execute does not cycle the CPU clock, instead it returns the number of cycles an operations took,
+ * Execute does not cycle the CPU clock, instead it returns the number of cycles an operation took,
  * this is becuase special timing must be taken into account.
  *
  * @param mcu Microcontroller Emulator
  * @return Number of cycles taken during execution
  */
 int avr_execute(AVR_MCU *restrict mcu);
+
+/**
+ * @brief Check for interrupts and possibly trigger.
+ *
+ * Interrupt does not cycle the CPU clock, instead it returns the number of cycles an operation took,
+ * if an interrupt did not trigger this will be zero.
+ *
+ * @note MUST call avr_interrupt AFTER avr_execute because of how it stores PC on ISR
+ *
+ * @param mcu Microcontroller Emulator
+ * @return Number of cycles taken during interrupt
+ */
+int avr_interrupt(AVR_MCU *restrict mcu);
 
 /**
  * @brief Cycle the CPU clock one time.

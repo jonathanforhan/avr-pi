@@ -2,9 +2,23 @@
 
 ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
-## Build
+## Supported Features
 
-All build commands should be run from project root directory
+- Entire AVR instruction set supported by the ATmega328P
+- Interrupts
+- Serial to stdout/stdin            (TODO)
+- Pin mapping to Raspberry Pi GPIO  (TODO)
+
+## Unsupported Features
+
+- Watchdog timer
+- Clock prescaling using CLKPS(3:0) bits, instead clock timing is set via ```AVR_MCU_CLK_SPEED``` during compilation
+- External clock sources
+- Brown out detection and power reduction
+- IVSEL, i.e. moving interrupt vectors to different offset in flash
+- Input capture
+
+## Build
 
 ### Dependencies
 
@@ -25,8 +39,6 @@ mkdir -p build && cmake -B build -S . --preset debug && cmake --build build
 ```
 
 ## Building as a Library
-
-It is recommended include avr-pi as a subdirectory and simply call
 
 ```cmake
 add_subdirectory("avr-pi")
