@@ -18,7 +18,7 @@ set_target_properties(avr-pi-lib PROPERTIES COMPILE_FLAGS "${AVR_PI_FLAGS}")
 
 # avr-pi cli
 add_executable(avr-pi "${CMAKE_CURRENT_SOURCE_DIR}/src/pi.c")
-target_link_libraries(avr-pi PRIVATE avr-pi-lib)
+target_link_libraries(avr-pi PRIVATE avr-pi-lib pigpio)
 
 # avr-pi tests
 enable_testing()

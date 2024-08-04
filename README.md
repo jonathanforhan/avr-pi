@@ -32,7 +32,16 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 ### Dependencies
 
 ```bash
-sudo apt-get install build-essential cmake ninja-build arduino-cli
+sudo apt-get install build-essential cmake ninja-build
+```
+
+```bash
+wget https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh
+bash install.sh
+sudo mv ./bin/arduino-cli /usr/local/bin
+arduino-cli config init
+arduino-cli core update-index
+arduino-cli core install arduino:avr
 ```
 
 ```bash

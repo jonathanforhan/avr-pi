@@ -17,10 +17,12 @@
  */
 
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <pigpio.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -39,6 +41,11 @@
 #define ERR_RANGE_2 4
 
 static AVR_MCU mcu;
+static volatile sig_atomic_t sigint = 0;
+
+static void signal_handler(int sig) {
+    sigint = sig;
+}
 
 static void print_version(void) {
     printf("avr-pi v%s\n", VERSION);
@@ -57,7 +64,7 @@ static inline void run(void) {
     int cycles;
     long err = 0; // measures accumulation of error each iteration
 
-    for (;;) {
+    while (!sigint) {
         (void)clock_gettime(CLOCK_MONOTONIC, &t0);
 
         cycles = avr_execute(&mcu);
@@ -144,7 +151,15 @@ int main(int argc, char *argv[]) {
     free(buf);
     buf = NULL;
 
-    run();
+    if (gpioInitialise() == PI_INIT_FAILED) {
+        LOG_ERROR("failed to initialize GPIO interface");
+        goto error;
+    } else {
+        if (signal(SIGINT, signal_handler) != SIG_ERR) {
+            run();
+        }
+        gpioTerminate();
+    }
 
     return 0;
 
