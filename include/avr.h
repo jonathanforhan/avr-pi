@@ -199,6 +199,9 @@ typedef struct AVR_MCU {
     /** @brief Idle mode enabled. */
     bool idle;
 
+    /** @brief PMW invert. */
+    bool pwm_invert;
+
     /** @brief System clock. */
     uint16_t clk;
 

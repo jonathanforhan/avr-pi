@@ -286,7 +286,7 @@ static inline int sbiw(AVR_MCU *restrict mcu, u8 d, u8 K) {
     // reg pairs { 24, 26, 28, 30 }
     u16 *Rd = (u16 *)&mcu->reg[d * 2 + 24];
 
-    // R <- Rd - Rr
+    // R <- Rd - K
     const u16 R = *Rd - K;
 
     const u8 Rdh7 = GET_BIT(*Rd, 15);
@@ -1736,6 +1736,7 @@ static inline u8 xstr2byte(const char *restrict s) {
     return b;
 }
 
+// get clock prescaler
 // if returns 0 that means clock is off
 static inline u16 get_clk_ps(u8 bitfield) {
     switch (bitfield) {
@@ -1754,7 +1755,343 @@ static inline u16 get_clk_ps(u8 bitfield) {
     };
 }
 
-// isr - enter an interrupt service routine
+// compare output used for setting OCx pins
+// NOLINTNEXTLINE
+static inline void comp_normal(AVR_MCU *restrict mcu, u8 reg, u8 bit, u8 com) {
+    switch (com) {
+    case 1:
+        TGL_BIT(mcu->data[reg], bit);
+        break;
+    case 2:
+        CLR_BIT(mcu->data[reg], bit);
+        break;
+    case 3:
+        PUT_BIT(mcu->data[reg], bit);
+        break;
+    }
+}
+
+// compare output used for setting OCx pins in PWM mode
+// for fase PWM reverse is set when at BOTTOM
+// for phase correct PWM reverse is set when counting DOWN
+// NOTE WGM02 must equal 1
+// NOLINTNEXTLINE
+static inline void comp_pwm(AVR_MCU *restrict mcu, u8 reg, u8 bit, u8 com, bool reverse) {
+    switch (com) {
+    case 1:
+        TGL_BIT(mcu->data[reg], bit);
+        break;
+    case 2:
+        SET_BIT(mcu->data[reg], bit, reverse);
+        break;
+    case 3:
+        SET_BIT(mcu->data[reg], bit, !reverse);
+        break;
+    }
+}
+
+// need a function per timer because there are slight variations in each
+static inline void timer0_tick(AVR_MCU *restrict mcu) {
+    // clk divisor
+    const u16 div0 = get_clk_ps(mcu->data[REG_TCCR0B] & 0x07);
+    if (div0 == 0 || mcu->clk % div0) {
+        return;
+    }
+
+    u8 *const tcnt0 = &mcu->data[REG_TCNT0];
+    const u8 wgm0   = MSH(mcu->data[REG_TCCR0B], 0x08, 1) | MSK(mcu->data[REG_TCCR0A], 0x03);
+    const u8 coma0  = MSH(mcu->data[REG_TCCR0A], 0xC0, 6);
+    const u8 comb0  = MSH(mcu->data[REG_TCCR0A], 0x30, 4);
+    u16 top0        = 0xFF;
+
+    switch (wgm0) {
+    case 0: // NORMAL
+        (*tcnt0)++;
+
+        if (*tcnt0 == mcu->data[REG_OCR0A]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
+            comp_normal(mcu, REG_PORTD, 6, coma0);
+        }
+        if (*tcnt0 == mcu->data[REG_OCR0B]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
+            comp_normal(mcu, REG_PORTD, 5, comb0);
+        }
+        break;
+    case 2: // CTC
+        top0   = mcu->data[REG_OCR0A];
+        *tcnt0 = (*tcnt0 + 1) % (top0 + 1);
+
+        if (*tcnt0 == mcu->data[REG_OCR0A]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
+            comp_normal(mcu, REG_PORTD, 6, coma0);
+        }
+        if (*tcnt0 == mcu->data[REG_OCR0B]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
+            comp_normal(mcu, REG_PORTD, 5, comb0);
+        }
+        break;
+    case 7: // Fast PWM Mode
+        top0 = mcu->data[REG_OCR0A];
+        __attribute__((fallthrough));
+    case 3:
+
+        *tcnt0 = (*tcnt0 + 1) % (top0 + 1);
+
+        if (*tcnt0 == mcu->data[REG_OCR0A]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
+            comp_pwm(mcu, REG_PORTD, 6, coma0, false);
+        }
+        if (*tcnt0 == mcu->data[REG_OCR0B]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
+            comp_pwm(mcu, REG_PORTD, 5, comb0, false);
+        }
+        if (*tcnt0 == 0) {
+            if (GET_BIT(coma0, 2))
+                comp_pwm(mcu, REG_PORTD, 6, coma0, true);
+            if (GET_BIT(comb0, 2))
+                comp_pwm(mcu, REG_PORTD, 5, comb0, true);
+        }
+        break;
+    case 5: // Phase Correct PWM Mode
+        top0 = mcu->data[REG_OCR0A];
+        __attribute__((fallthrough));
+    case 1:
+        *tcnt0 = mcu->pwm_invert ? -1 : 1;
+
+        if (*tcnt0 == mcu->data[REG_OCR0A]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
+            comp_pwm(mcu, REG_PORTD, 6, coma0, mcu->pwm_invert);
+        }
+        if (*tcnt0 == mcu->data[REG_OCR0B]) {
+            PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
+            comp_pwm(mcu, REG_PORTD, 5, comb0, mcu->pwm_invert);
+        }
+        if (*tcnt0 == 0 || *tcnt0 == top0) {
+            mcu->pwm_invert = !mcu->pwm_invert;
+        }
+        break;
+    default:
+        LOG_ERROR("unknown waveform generator mode");
+        return;
+    }
+
+    mcu->data[REG_TIFR0] |= (*tcnt0 == 0); // only set never clear
+}
+
+// need a function per timer because there are slight variations in each
+static inline void timer1_tick(AVR_MCU *restrict mcu) {
+    // clk divisor
+    const u16 div1 = get_clk_ps(mcu->data[REG_TCCR1B] & 0x07);
+    if (div1 == 0 || mcu->clk % div1) {
+        return;
+    }
+
+    u16 *const tcnt1 = (u16 *)&mcu->data[REG_TCNT1L];
+    const u8 wgm1    = MSH(mcu->data[REG_TCCR1B], 0x18, 3) | MSK(mcu->data[REG_TCCR1A], 0x03);
+    const u8 coma1   = MSH(mcu->data[REG_TCCR1A], 0xC0, 6);
+    const u8 comb1   = MSH(mcu->data[REG_TCCR1A], 0x30, 4);
+    u16 top1;
+
+    switch (wgm1) {
+    case 1:
+    case 5:
+        top1 = 0x00FF;
+        break;
+    case 2:
+    case 6:
+        top1 = 0x01FF;
+        break;
+    case 3:
+    case 7:
+        top1 = 0x03FF;
+        break;
+    case 10:
+    case 14:
+        top1 = *(u16 *)&mcu->data[REG_ICR1L];
+        break;
+    case 11:
+    case 15:
+        top1 = *(u16 *)&mcu->data[REG_OCR1AL];
+        break;
+    }
+
+    switch (wgm1) {
+    case 0: // NORMAL
+        (*tcnt1)++;
+
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            comp_normal(mcu, REG_PORTB, 1, coma1);
+        }
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            comp_normal(mcu, REG_PORTB, 2, comb1);
+        }
+        break;
+    case 4: // CTC
+        top1   = *(u16 *)&mcu->data[REG_OCR1AL];
+        *tcnt1 = (*tcnt1 + 1) % (top1 + 1);
+
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            comp_normal(mcu, REG_PORTB, 1, coma1);
+        }
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            comp_normal(mcu, REG_PORTB, 2, comb1);
+        }
+        break;
+    case 12: // CTC
+        top1   = *(u16 *)&mcu->data[REG_ICR1L];
+        *tcnt1 = (*tcnt1 + 1) % (top1 + 1);
+
+        if (wgm1 == 12 && *tcnt1 == *(u16 *)&mcu->data[REG_ICR1L]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            comp_normal(mcu, REG_PORTB, 1, coma1);
+        }
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            comp_normal(mcu, REG_PORTB, 2, comb1);
+        }
+        break;
+    case 5: // Fast PWM Mode
+    case 6:
+    case 7:
+    case 14:
+    case 15:
+        *tcnt1 = (*tcnt1 + 1) % (top1 + 1);
+
+        if ((wgm1 == 14 && *tcnt1 == *(u16 *)&mcu->data[REG_ICR1L]) ||
+            (wgm1 != 14 && *tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL])) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            comp_pwm(mcu, REG_PORTB, 1, coma1, false);
+        }
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            comp_pwm(mcu, REG_PORTB, 2, comb1, false);
+        }
+        if (*tcnt1 == 0) {
+            if (GET_BIT(coma1, 2))
+                comp_pwm(mcu, REG_PORTB, 1, coma1, true);
+            if (GET_BIT(comb1, 2))
+                comp_pwm(mcu, REG_PORTB, 2, comb1, true);
+        }
+        break;
+    case 1:
+    case 2:
+    case 3:
+    case 8:
+    case 9:
+        *tcnt1 = mcu->pwm_invert ? -1 : 1;
+
+        if ((wgm1 == 14 && *tcnt1 == *(u16 *)&mcu->data[REG_ICR1L]) ||
+            (wgm1 != 14 && *tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL])) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            comp_pwm(mcu, REG_PORTB, 1, coma1, mcu->pwm_invert);
+        }
+        if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]) {
+            PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            comp_pwm(mcu, REG_PORTB, 2, comb1, mcu->pwm_invert);
+        }
+        if (*tcnt1 == 0 || *tcnt1 == top1) {
+            mcu->pwm_invert = !mcu->pwm_invert;
+        }
+        break;
+    default:
+        LOG_ERROR("unknown waveform generator mode");
+        return;
+    }
+
+    mcu->data[REG_TIFR1] |= (*tcnt1 == 0); // only set never clear
+}
+
+static inline void timer2_tick(AVR_MCU *restrict mcu) {
+    // clk divisor
+    const u16 div2 = get_clk_ps(mcu->data[REG_TCCR2B] & 0x07);
+    if (div2 == 0 || mcu->clk % div2) {
+        return;
+    }
+
+    u8 *const tcnt2 = &mcu->data[REG_TCNT2];
+    const u8 wgm2   = MSH(mcu->data[REG_TCCR2B], 0x08, 1) | MSK(mcu->data[REG_TCCR2A], 0x03);
+    const u8 coma2  = MSH(mcu->data[REG_TCCR2A], 0xC0, 6);
+    const u8 comb2  = MSH(mcu->data[REG_TCCR2A], 0x30, 4);
+    u16 top2        = 0xFF;
+
+    switch (wgm2) {
+    case 0: // NORMAL
+        (*tcnt2)++;
+
+        if (*tcnt2 == mcu->data[REG_OCR2A]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
+            comp_normal(mcu, REG_PORTB, 3, coma2);
+        }
+        if (*tcnt2 == mcu->data[REG_OCR2B]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
+            comp_normal(mcu, REG_PORTD, 3, comb2);
+        }
+        break;
+    case 2: // CTC
+        top2   = mcu->data[REG_OCR2A];
+        *tcnt2 = (*tcnt2 + 1) % (top2 + 1);
+
+        if (*tcnt2 == mcu->data[REG_OCR2A]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
+            comp_normal(mcu, REG_PORTB, 3, coma2);
+        }
+        if (*tcnt2 == mcu->data[REG_OCR2B]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
+            comp_normal(mcu, REG_PORTD, 3, comb2);
+        }
+        break;
+    case 7: // Fast PWM Mode
+        top2 = mcu->data[REG_OCR2A];
+        __attribute__((fallthrough));
+    case 3:
+        *tcnt2 = (*tcnt2 + 1) % (top2 + 1);
+
+        if (*tcnt2 == mcu->data[REG_OCR2A]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
+            comp_pwm(mcu, REG_PORTB, 3, coma2, false);
+        }
+        if (*tcnt2 == mcu->data[REG_OCR2B]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
+            comp_pwm(mcu, REG_PORTD, 3, comb2, false);
+        }
+        if (*tcnt2 == 0) {
+            if (GET_BIT(coma2, 2))
+                comp_pwm(mcu, REG_PORTB, 3, coma2, true);
+            if (GET_BIT(comb2, 2))
+                comp_pwm(mcu, REG_PORTD, 3, comb2, true);
+        }
+        break;
+    case 5: // Phase Correct PWM Mode
+        top2 = mcu->data[REG_OCR2A];
+        __attribute__((fallthrough));
+    case 1:
+        *tcnt2 = mcu->pwm_invert ? -1 : 1;
+
+        if (*tcnt2 == mcu->data[REG_OCR2A]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
+            comp_pwm(mcu, REG_PORTB, 3, coma2, mcu->pwm_invert);
+        }
+        if (*tcnt2 == mcu->data[REG_OCR2B]) {
+            PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
+            comp_pwm(mcu, REG_PORTD, 3, comb2, mcu->pwm_invert);
+        }
+        if (*tcnt2 == 0 || *tcnt2 == top2) {
+            mcu->pwm_invert = !mcu->pwm_invert;
+        }
+        break;
+    default:
+        LOG_ERROR("unknown waveform generator mode");
+        return;
+    }
+
+    mcu->data[REG_TIFR2] |= (*tcnt2 == 0); // only set never clear
+}
+
+// enter an interrupt service routine
 // this should be called after an execute call so we store current pc
 // takes 4 cycles just like a normal call instruction
 // iv : interrupt vector
@@ -1784,6 +2121,10 @@ void avr_mcu_init(AVR_MCU *restrict mcu) {
     mcu->sram       = &mcu->data[AVR_MCU_SRAM_OFFSET];
 
     *mcu->sp = AVR_MCU_RAMEND;
+
+    // initial values
+    mcu->data[REG_UCSR0A] |= 0x20; // 0010 0000
+    mcu->data[REG_UCSR0C] |= 0x06; // 0000 0110
 }
 
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
@@ -2400,7 +2741,7 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
     // reset
     if (mcu->data[REG_MCUSR]) {
         mcu->data[REG_MCUSR] = 0;
-        LOG_DEBUG("int reset");
+        PRINT_DEBUG("int reset");
         return isr(mcu, IV_RESET);
     }
 
@@ -2416,19 +2757,19 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
         // timer2 compa
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_OCF2A) && GET_BIT(mcu->data[REG_TIMSK2], 1)) {
             CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
-            LOG_DEBUG("int timer2 compa");
+            PRINT_DEBUG("int timer2 compa");
             return isr(mcu, IV_TIMER2_COMPA);
         }
         // timer2 compb
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_OCF2B) && GET_BIT(mcu->data[REG_TIMSK2], 2)) {
             CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
-            LOG_DEBUG("int timer2 compb");
+            PRINT_DEBUG("int timer2 compb");
             return isr(mcu, IV_TIMER2_COMPB);
         }
         // timer2 ovf
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_TOV2) && GET_BIT(mcu->data[REG_TIMSK2], 0)) {
             CLR_BIT(mcu->data[REG_TIFR2], BIT_TOV2);
-            LOG_DEBUG("int timer2 ovf");
+            PRINT_DEBUG("int timer2 ovf");
             return isr(mcu, IV_TIMER2_OVF);
         }
     }
@@ -2438,19 +2779,19 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
         // timer1 compa
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_OCF1A) && GET_BIT(mcu->data[REG_TIMSK1], 1)) {
             CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
-            LOG_DEBUG("int timer1 compa");
+            PRINT_DEBUG("int timer1 compa");
             return isr(mcu, IV_TIMER1_COMPA);
         }
         // timer1 compb
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_OCF1B) && GET_BIT(mcu->data[REG_TIMSK1], 2)) {
             CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
-            LOG_DEBUG("int timer1 compb");
+            PRINT_DEBUG("int timer1 compb");
             return isr(mcu, IV_TIMER1_COMPB);
         }
         // timer1 ovf
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_TOV1) && GET_BIT(mcu->data[REG_TIMSK1], 0)) {
             CLR_BIT(mcu->data[REG_TIFR1], BIT_TOV1);
-            LOG_DEBUG("int timer1 ovf");
+            PRINT_DEBUG("int timer1 ovf");
             return isr(mcu, IV_TIMER1_OVF);
         }
     }
@@ -2459,33 +2800,50 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
         // timer0 compa
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_OCF0A) && GET_BIT(mcu->data[REG_TIMSK0], 1)) {
             CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
-            LOG_DEBUG("int timer0 compa");
+            PRINT_DEBUG("int timer0 compa");
             return isr(mcu, IV_TIMER0_COMPA);
         }
         // timer0 compb
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_OCF0B) && GET_BIT(mcu->data[REG_TIMSK0], 2)) {
             CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
-            LOG_DEBUG("int timer0 compb");
+            PRINT_DEBUG("int timer0 compb");
             return isr(mcu, IV_TIMER0_COMPB);
         }
         // timer0 ovf
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_TOV0) && GET_BIT(mcu->data[REG_TIMSK0], 0)) {
             CLR_BIT(mcu->data[REG_TIFR0], BIT_TOV0);
-            LOG_DEBUG("int timer0 ovf");
+            PRINT_DEBUG("int timer0 ovf");
             return isr(mcu, IV_TIMER0_OVF);
         }
     }
 
     // spi stc
+
     // usart rx
+    if (GET_BIT(mcu->data[REG_UCSR0B], BIT_RXCIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_RXC0)) {
+        PRINT_DEBUG("int usart rx");
+        return isr(mcu, IV_USART_RX);
+    }
+
     // usart udre
+    if (GET_BIT(mcu->data[REG_UCSR0B], BIT_UDRIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_UDRE0)) {
+        PRINT_DEBUG("int usart udre");
+        return isr(mcu, IV_USART_UDRE);
+    }
+
     // usart tx
+    if (GET_BIT(mcu->data[REG_UCSR0B], BIT_TXCIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_TXC0)) {
+        CLR_BIT(mcu->data[REG_UCSR0A], BIT_TXC0);
+        PRINT_DEBUG("int usart tx");
+        return isr(mcu, IV_USART_TX);
+    }
+
     // adc
 
     // ee ready
     if (GET_BIT(mcu->data[REG_EECR], BIT_EERIE)) {
         CLR_BIT(mcu->data[REG_EECR], BIT_EERIE);
-        LOG_DEBUG("int ee ready");
+        PRINT_DEBUG("int ee ready");
         return isr(mcu, IV_EE_READY);
     }
 
@@ -2502,87 +2860,7 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
 void avr_cycle(AVR_MCU *restrict mcu) {
     mcu->clk++;
 
-    u8 *const tcnt0  = &mcu->data[REG_TCNT0];
-    u16 *const tcnt1 = (u16 *)&mcu->data[REG_TCNT1L];
-    u8 *const tcnt2  = &mcu->data[REG_TCNT2];
-
-    u16 top0, top1, top2, div;
-    top0 = top1 = top2 = 0xFF;
-
-    const u8 wgm = MSH(mcu->data[REG_TCCR0B], 0x08, 1) | MSK(mcu->data[REG_TCCR0A], 0x03);
-
-    switch (wgm) {
-    case 0: // NORMAL
-        // Timer/Counter 0
-        (*tcnt0)++;
-        SET_BIT(mcu->data[REG_TIFR0], BIT_OCF0A, *tcnt0 == mcu->data[REG_OCR0A]);
-        SET_BIT(mcu->data[REG_TIFR0], BIT_OCF0B, *tcnt0 == mcu->data[REG_OCR0B]);
-
-        // Timer/Counter 1
-        (*tcnt1)++;
-        SET_BIT(mcu->data[REG_TIFR1], BIT_OCF1A, *tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL]);
-        SET_BIT(mcu->data[REG_TIFR1], BIT_OCF1B, *tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]);
-
-        // Timer/Counter 2
-        (*tcnt2)++;
-        SET_BIT(mcu->data[REG_TIFR2], BIT_OCF2A, *tcnt2 == mcu->data[REG_OCR2A]);
-        SET_BIT(mcu->data[REG_TIFR2], BIT_OCF2B, *tcnt2 == mcu->data[REG_OCR2B]);
-        break;
-    case 2: // CTC
-        top0 = mcu->data[REG_OCR0A];
-        top1 = *(u16 *)&mcu->data[REG_OCR1AL];
-        top2 = mcu->data[REG_OCR2A];
-
-        // Timer/Counter 0
-        *tcnt0 = (*tcnt0 + 1) % (top0 + 1);
-        SET_BIT(mcu->data[REG_TIFR0], BIT_OCF0A, *tcnt0 == top0);
-
-        // Timer/Counter 1
-        *tcnt1 = (*tcnt1 + 1) % (top1 + 1);
-        SET_BIT(mcu->data[REG_TIFR1], BIT_OCF1A, *tcnt1 == top1);
-
-        // Timer/Counter 2
-        *tcnt2 = (*tcnt2 + 1) % (top2 + 1);
-        SET_BIT(mcu->data[REG_TIFR2], BIT_OCF2A, *tcnt2 == top2);
-        break;
-    case 7: // Fast PWM Mode
-        top0 = mcu->data[REG_OCR0A];
-        top1 = *(u16 *)&mcu->data[REG_OCR1AL];
-        top2 = mcu->data[REG_OCR2A];
-        __attribute__((fallthrough));
-    case 3:
-        // clk divisor
-        div = get_clk_ps(mcu->data[REG_TCCR0B] & 0x07);
-
-        if (div == 0 || mcu->clk % div) {
-            return;
-        }
-
-        // Timer/Counter 0
-        *tcnt0 = (*tcnt0 + 1) % (top0 + 1);
-        SET_BIT(mcu->data[REG_TIFR0], BIT_OCF0A, *tcnt0 == mcu->data[REG_OCR0A]);
-        SET_BIT(mcu->data[REG_TIFR0], BIT_OCF0B, *tcnt0 == mcu->data[REG_OCR0B]);
-
-        // Timer/Counter 1
-        *tcnt1 = (*tcnt1 + 1) % (top1 + 1);
-        SET_BIT(mcu->data[REG_TIFR1], BIT_OCF1A, *tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL]);
-        SET_BIT(mcu->data[REG_TIFR1], BIT_OCF1B, *tcnt1 == *(u16 *)&mcu->data[REG_OCR1BL]);
-
-        // Timer/Counter 2
-        *tcnt2 = (*tcnt2 + 1) % (top2 + 1);
-        SET_BIT(mcu->data[REG_TIFR2], BIT_OCF2A, *tcnt2 == mcu->data[REG_OCR2A]);
-        SET_BIT(mcu->data[REG_TIFR2], BIT_OCF2B, *tcnt2 == mcu->data[REG_OCR2B]);
-        break;
-    case 5: // Phase Corrent PWM Mode
-    case 1:
-        LOG_ERROR("TODO: Phase Corrent PWM Mode");
-        return;
-    default:
-        LOG_ERROR("unknown waveform generator mode");
-        return;
-    }
-
-    mcu->data[REG_TIFR0] |= ((*tcnt0) == 0); // only set never clear
-    mcu->data[REG_TIFR1] |= ((*tcnt1) == 0); // only set never clear
-    mcu->data[REG_TIFR2] |= ((*tcnt2) == 0); // only set never clear
+    timer0_tick(mcu);
+    timer1_tick(mcu);
+    timer2_tick(mcu);
 }

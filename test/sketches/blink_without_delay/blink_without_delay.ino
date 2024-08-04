@@ -3,5 +3,5 @@ void setup() {
 }
 
 void loop() {
-    digitalWrite(12, (millis() % 1000 > 500));
+    digitalWrite(12, (millis() % 2000 > 1000));
 }

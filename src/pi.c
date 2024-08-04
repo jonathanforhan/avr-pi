@@ -61,9 +61,8 @@ static inline void run(void) {
         (void)clock_gettime(CLOCK_MONOTONIC, &t0);
 
         cycles = avr_execute(&mcu);
-        PRINT_DEBUG("\n");
 
-        // spead approximately one clk period on each cycle
+        // spend approximately one clk period on each cycle
         // errors are tracked and accounted for
         while (cycles) {
             do {
@@ -80,12 +79,6 @@ static inline void run(void) {
                 (void)clock_gettime(CLOCK_MONOTONIC, &t0);
             }
         }
-
-        static int last;
-        if (GET_BIT(mcu.data[REG_PORTB], 4) != last) {
-            printf("%d\n", GET_BIT(mcu.data[REG_PORTB], 4));
-        }
-        last = GET_BIT(mcu.data[REG_PORTB], 4);
     }
 }
 

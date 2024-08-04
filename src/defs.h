@@ -34,7 +34,7 @@
 #ifdef NDEBUG
 #define PRINT_DEBUG(...) ((void)0)
 #else
-#define PRINT_DEBUG(...) ((void)fprintf(stderr, __VA_ARGS__))
+#define PRINT_DEBUG(MSG, ...) ((void)fprintf(stderr, MSG "\n", ##__VA_ARGS__))
 #endif
 
 // get Nth bit from X returns 0 or 1
@@ -48,6 +48,9 @@
 
 // clear Nth bit from X
 #define CLR_BIT(X, N) (X &= ~(1 << (N)))
+
+// toggle Nth bit from X
+#define TGL_BIT(X, N) ((X) ^= 1 << (N))
 
 // returns two's complement
 #define TWO_COMP(X) (~(X) + 1)
