@@ -6,6 +6,7 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
 - Entire AVR instruction set supported by the ATmega328P
 - Interrupts
+- PWM output pins
 - Accurate simulated frequency of up to 16MHz
 
 ## Planned Features
@@ -13,7 +14,6 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 - Pin mapping to Raspberry Pi GPIO
 - USART to stdout/stdin
 - SPI and I2C
-- PWM output pins
 - ADC
 - EEPROM read/write
 - Sleep modes
@@ -33,6 +33,14 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
 ```bash
 sudo apt-get install build-essential cmake ninja-build arduino-cli
+```
+
+```bash
+wget https://github.com/joan2937/pigpio/archive/master.zip
+unzip master.zip
+cd pigpio-master
+make
+sudo make install
 ```
 
 ### Release

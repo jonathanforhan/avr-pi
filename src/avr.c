@@ -1856,7 +1856,7 @@ static inline void timer0_tick(AVR_MCU *restrict mcu) {
         top0 = mcu->data[REG_OCR0A];
         __attribute__((fallthrough));
     case 1:
-        *tcnt0 = mcu->pwm_invert ? -1 : 1;
+        *tcnt0 += mcu->pwm_invert ? -1 : 1;
 
         if (*tcnt0 == mcu->data[REG_OCR0A]) {
             PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
@@ -2069,7 +2069,7 @@ static inline void timer2_tick(AVR_MCU *restrict mcu) {
         top2 = mcu->data[REG_OCR2A];
         __attribute__((fallthrough));
     case 1:
-        *tcnt2 = mcu->pwm_invert ? -1 : 1;
+        *tcnt2 += mcu->pwm_invert ? -1 : 1;
 
         if (*tcnt2 == mcu->data[REG_OCR2A]) {
             PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
