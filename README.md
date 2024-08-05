@@ -31,6 +31,31 @@ Demo using tests/sketches/hello_world/hello_world.ino sketch
 - IVSEL, i.e. moving interrupt vectors to different offset in flash
 - Input capture
 
+## Pinout
+
+|UNO   |GPIO |
+|:-----|:----|
+| 0    | 16  |
+| 1    | 17  |
+| 2    | 18  |
+| 3    | 19  |
+| 4    | 20  |
+| 5    | 21  |
+| 6    | 22  |
+| 7    | 23  |
+| 8    | 0   |
+| 9    | 1   |
+| 10   | 2   |
+| 11   | 3   |
+| 12   | 4   |
+| 13   | 5   |
+| A0   | 8   |
+| A1   | 9   |
+| A2   | 10  |
+| A3   | 11  |
+| A4   | 12  |
+| A5   | 13  |
+
 ## Build
 
 ### Dependencies
