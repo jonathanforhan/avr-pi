@@ -2,6 +2,10 @@
 
 ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
+https://github.com/user-attachments/assets/39a314e8-c110-4cb7-8dd1-8153276ac464
+
+Demo using tests/sketches/hello_world/hello_world.ino sketch
+
 ## Supported Features
 
 - Entire AVR instruction set supported by the ATmega328P
