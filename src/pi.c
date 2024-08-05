@@ -18,7 +18,7 @@
 
 /**
  * === PINOUT ===
- * AVR  GPIO  INO 
+ * AVR  GPIO  INO
  * PB0  0     8
  * PB1  1     9
  * PB2  2     10
@@ -46,6 +46,7 @@
  */
 
 #include <fcntl.h>
+#include <pigpio.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -53,7 +54,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <pigpio.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -100,7 +100,7 @@ static void print_help(void) {
 // state: global state ptr
 // offset: offset of GPIO DCM
 // return: true if state changed
-static inline bool update_ddr(uint8_t reg, uint8_t* state, uint8_t offset) {
+static inline bool update_ddr(uint8_t reg, uint8_t *state, uint8_t offset) {
     if (mcu.data[reg] != *state) {
         for (int i = 0; i < 8; i++) {
             if (GET_BIT(mcu.data[reg], i) != GET_BIT(*state, i)) {
@@ -129,7 +129,7 @@ static inline void update_pin(uint8_t reg, uint8_t ddr, uint8_t offset) {
 // reg: AVR reg
 // ddr: AVR ddr
 // offset: offset of GPIO DCM
-static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t* state, uint8_t offset) {
+static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t *state, uint8_t offset) {
     if (mcu.data[reg] != *state) {
         for (int i = 0; i < 8; i++) {
             if (GET_BIT(mcu.data[ddr], i) == 1) {
@@ -165,9 +165,9 @@ static inline void setup(void) {
         }
     }
 
-    ddrb_state = mcu.data[REG_DDRB];
-    ddrc_state = mcu.data[REG_DDRC];
-    ddrd_state = mcu.data[REG_DDRD];
+    ddrb_state  = mcu.data[REG_DDRB];
+    ddrc_state  = mcu.data[REG_DDRC];
+    ddrd_state  = mcu.data[REG_DDRD];
     portb_state = mcu.data[REG_PORTB];
     portc_state = mcu.data[REG_PORTC];
     portd_state = mcu.data[REG_PORTD];
@@ -201,17 +201,18 @@ static inline void loop(void) {
             }
         }
 
-        // update_ddr(REG_DDRB, &ddrb_state, 0);
-        // update_ddr(REG_DDRC, &ddrc_state, 8);
-        // update_ddr(REG_DDRD, &ddrd_state, 16);
+        update_ddr(REG_DDRB, &ddrb_state, 0);
+        update_ddr(REG_DDRC, &ddrc_state, 8);
+        update_ddr(REG_DDRD, &ddrd_state, 16);
 
+        // TODO optimize, too slow
         // update_pin(REG_PINB, REG_DDRB, 0);
         // update_pin(REG_PINC, REG_DDRC, 8);
         // update_pin(REG_PIND, REG_DDRD, 16);
 
-        // update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
-        // update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
-        // update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
+        update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
+        update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
+        update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
     }
 }
 
