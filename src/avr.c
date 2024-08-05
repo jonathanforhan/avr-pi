@@ -252,7 +252,7 @@ static inline int sbci(AVR_MCU *restrict mcu, u8 d, u8 K) {
     u8 *Rd = &mcu->reg[d];
 
     // R <- Rd - K - C
-    const u8 R = *Rd - K - GET_BIT(*mcu->sreg, SREG_C);
+    const u8 R = (*Rd - K) - GET_BIT(*mcu->sreg, SREG_C);
 
     const u8 Rd3 = GET_BIT(*Rd, 3), K3 = GET_BIT(K, 3), R3 = GET_BIT(R, 3);
     const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
@@ -269,7 +269,7 @@ static inline int sbci(AVR_MCU *restrict mcu, u8 d, u8 K) {
     // N = R7
     SET_BIT(*mcu->sreg, SREG_N, R7);
     // Z = ~R7 & ~R6 & ~R5 & ~R4 & ~R3 & ~R2 & ~R1 & ~R0 & Z
-    SET_BIT(*mcu->sreg, SREG_Z, R == 0 && GET_BIT(*mcu->sreg, SREG_Z));
+    SET_BIT(*mcu->sreg, SREG_Z, (R == 0) & GET_BIT(*mcu->sreg, SREG_Z));
     // C = ~Rd7 & K7 | K7 & R7 | R7 & ~Rd7
     SET_BIT(*mcu->sreg, SREG_C, (~Rd7 & K7) | (K7 & R7) | (R7 & ~Rd7));
 
@@ -1410,10 +1410,10 @@ static inline int ldd_y(AVR_MCU *restrict mcu, u8 d, u8 q) {
     ASSERT_BOUNDS(q, 0, 63);
 
     u8 *Rd      = &mcu->reg[d];
-    const u16 Y = *(u16 *)&mcu->reg[REG_Y + q];
+    const u16 Y = *(u16 *)&mcu->reg[REG_Y];
 
     // Rd <- (Y)
-    *Rd = mcu->data[Y];
+    *Rd = mcu->data[Y + q];
 
     // PC <- PC + 1
     mcu->pc++;
@@ -1426,10 +1426,10 @@ static inline int ldd_z(AVR_MCU *restrict mcu, u8 d, u8 q) {
     ASSERT_BOUNDS(q, 0, 63);
 
     u8 *Rd      = &mcu->reg[d];
-    const u16 Z = *(u16 *)&mcu->reg[REG_Z + q];
+    const u16 Z = *(u16 *)&mcu->reg[REG_Z];
 
     // Rd <- (Z)
-    *Rd = mcu->data[Z];
+    *Rd = mcu->data[Z + q];
 
     // PC <- PC + 1
     mcu->pc++;
@@ -1540,10 +1540,10 @@ static inline int std_y(AVR_MCU *restrict mcu, u8 q, u8 r) {
     ASSERT_BOUNDS(r, 0, 31);
 
     const u8 *Rr = &mcu->reg[r];
-    const u16 Y  = *(u16 *)&mcu->reg[REG_Y + q];
+    const u16 Y  = *(u16 *)&mcu->reg[REG_Y];
 
     // (Y) <- Rr
-    mcu->data[Y] = *Rr;
+    mcu->data[Y + q] = *Rr;
 
     // PC <- PC + 1
     mcu->pc++;
@@ -1556,10 +1556,10 @@ static inline int std_z(AVR_MCU *restrict mcu, u8 q, u8 r) {
     ASSERT_BOUNDS(r, 0, 31);
 
     const u8 *Rr = &mcu->reg[r];
-    const u16 Z  = *(u16 *)&mcu->reg[REG_Z + q];
+    const u16 Z  = *(u16 *)&mcu->reg[REG_Z];
 
     // (Z) <- Rr
-    mcu->data[Z] = *Rr;
+    mcu->data[Z + q] = *Rr;
 
     // PC <- PC + 1
     mcu->pc++;
@@ -1594,7 +1594,7 @@ static inline int lpm(AVR_MCU *restrict mcu, u8 d) {
     *Rd = ((u8 *)&mcu->flash)[Z];
 
     // PC <- PC + 1
-    mcu->pc += 1;
+    mcu->pc++;
 
     return 3;
 }
@@ -1617,7 +1617,7 @@ static inline int spm(AVR_MCU *restrict mcu) {
     // PC <- PC + 1
     mcu->pc++;
 
-    return 0; // special case, used from EEPROM writing. Will be int time (TODO)
+    return 4; // device dependent, 4 sounds good
 }
 
 // in - load an io location to register
@@ -2146,11 +2146,7 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
         hex += 2;
 
         switch (type) {
-        case DATA_RECORD:
-        case EXTENDED_SEGMENT_ADDR_RECORD:
-        case START_SEGMENT_ADDR_RECORD:
-        case EXTENDED_LINEAR_ADDR_RECORD:
-        case START_LINEAR_ADDR_RECORD: {
+        case DATA_RECORD: {
             u8 checksum = len + (addr >> 8) + (addr & 0xFF) + type;
 
             for (u8 i = 0; i < len; i++) {
@@ -2169,6 +2165,12 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
             }
             hex += 2;
         } break;
+        case EXTENDED_SEGMENT_ADDR_RECORD:
+        case START_SEGMENT_ADDR_RECORD:
+        case EXTENDED_LINEAR_ADDR_RECORD:
+        case START_LINEAR_ADDR_RECORD:
+            LOG_DEBUG("record %d encountered", type);
+            break;
         case EOF_RECORD:
             return AVR_OK;
         default:
@@ -2654,7 +2656,7 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     }
     case OP_BCLR: {
         const u8 s = MSH(op, 0x0070, 4);
-        PRINT_DEBUG("%-8s %-17d", "clr", s);
+        PRINT_DEBUG("%-8s %-17d", "bclr", s);
         return bclr(mcu, s);
     }
     }
@@ -2701,24 +2703,24 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     switch (op & OP_MASK_Q) {
     case OP_LDD_Y: {
         const u8 d = MSH(op, 0x01F0, 4);
-        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "ldd(Y)", d, q);
         return ldd_y(mcu, d, q);
     }
     case OP_LDD_Z: {
         const u8 d = MSH(op, 0x01F0, 4);
-        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "ldd(Z)", d, q);
         return ldd_z(mcu, d, q);
     }
     case OP_STD_Y: {
-        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0007);
         const u8 r = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("%-8s %-8d r%-7d", "std(Y)", q, r);
         return std_y(mcu, q, r);
     }
     case OP_STD_Z: {
-        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0003);
+        const u8 q = MSH(op, 0x2000, 8) | MSH(op, 0x0C00, 7) | MSK(op, 0x0007);
         const u8 r = MSH(op, 0x01F0, 4);
         PRINT_DEBUG("%-8s %-8d r%-7d", "std(Z)", q, r);
         return std_z(mcu, q, r);

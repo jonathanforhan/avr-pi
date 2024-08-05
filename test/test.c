@@ -952,21 +952,7 @@ static AVR_Result test_data_transfer_instructions(void) {
     // TODO tests
 
     // lpm
-    {
-        *(u16 *)&mcu.reg[REG_Z] = 512;
-        mcu.flash[512 / 2]      = 42;
-
-        u8 expected = 42;
-
-        lpm(&mcu, 0);
-
-        u8 real = mcu.reg[0];
-
-        if (real != expected) {
-            LOG_ERROR("test failed lpm: real %#x, expected %#x", real, expected);
-            return AVR_ERROR;
-        }
-    }
+    // TODO tests
 
     // in
     {

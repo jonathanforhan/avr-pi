@@ -52,6 +52,12 @@ make
 sudo make install
 ```
 
+#### Test Sketch Dependencies
+
+```bash
+arduino-cli lib install LiquidCrystal@1.0.7
+```
+
 ### Release
 
 ```bash

@@ -16,8 +16,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * === PINOUT ===
+ * AVR  GPIO  INO 
+ * PB0  0     8
+ * PB1  1     9
+ * PB2  2     10
+ * PB3  3     11
+ * PB4  4     12
+ * PB5  5     13
+ * PB6  6     -
+ * PB7  7     -
+ * PC0  8     A0
+ * PC1  9     A1
+ * PC2  10    A2
+ * PC3  11    A3
+ * PC4  12    A4
+ * PC5  13    A5
+ * PC6  14    -
+ * -    -     -
+ * PD0  16    0
+ * PD1  17    1
+ * PD2  18    2
+ * PD3  19    3
+ * PD4  20    4
+ * PD5  21    5
+ * PD6  22    6
+ * PD7  23    7
+ */
+
 #include <fcntl.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +74,11 @@
 static AVR_MCU mcu;
 static volatile sig_atomic_t sigint = 0;
 
+// want to avoid as many syscalls as possible so state is cached
+static uint8_t ddrb_state, portb_state; // b
+static uint8_t ddrc_state, portc_state; // c
+static uint8_t ddrd_state, portd_state; // d
+
 static void signal_handler(int sig) {
     sigint = sig;
 }
@@ -59,7 +95,85 @@ static void print_help(void) {
         "\tavr-pi {file}.hex\tExecute a compiled AVR hex file.\n");
 }
 
-static inline void run(void) {
+// update ddr on GPIO
+// reg: AVR reg
+// state: global state ptr
+// offset: offset of GPIO DCM
+// return: true if state changed
+static inline bool update_ddr(uint8_t reg, uint8_t* state, uint8_t offset) {
+    if (mcu.data[reg] != *state) {
+        for (int i = 0; i < 8; i++) {
+            if (GET_BIT(mcu.data[reg], i) != GET_BIT(*state, i)) {
+                gpioSetMode(i + offset, GET_BIT(mcu.data[reg], i) ? PI_OUTPUT : PI_INPUT);
+            }
+        }
+        *state = mcu.data[reg];
+        return true;
+    }
+    return false;
+}
+
+// update pin in AVR
+// reg: AVR reg
+// ddr: AVR ddr
+// offset: offset of GPIO DCM
+static inline void update_pin(uint8_t reg, uint8_t ddr, uint8_t offset) {
+    for (int i = 0; i < 8; i++) {
+        if (GET_BIT(mcu.data[ddr], i) == 0) {
+            SET_BIT(mcu.data[reg], i, gpioRead(i + offset));
+        }
+    }
+}
+
+// update port in AVR
+// reg: AVR reg
+// ddr: AVR ddr
+// offset: offset of GPIO DCM
+static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t* state, uint8_t offset) {
+    if (mcu.data[reg] != *state) {
+        for (int i = 0; i < 8; i++) {
+            if (GET_BIT(mcu.data[ddr], i) == 1) {
+                gpioWrite(i + offset, GET_BIT(mcu.data[reg], i));
+            }
+        }
+        *state = mcu.data[reg];
+    }
+}
+
+static inline void setup(void) {
+    for (int i = 0; i < 8; i++) {
+        gpioSetMode(i + 0, GET_BIT(mcu.data[REG_DDRB], i) ? PI_OUTPUT : PI_INPUT);
+        gpioSetMode(i + 8, GET_BIT(mcu.data[REG_DDRC], i) ? PI_OUTPUT : PI_INPUT);
+        gpioSetMode(i + 16, GET_BIT(mcu.data[REG_DDRD], i) ? PI_OUTPUT : PI_INPUT);
+
+        if (GET_BIT(mcu.data[REG_DDRB], i)) {
+            gpioWrite(i + 0, GET_BIT(mcu.data[REG_PORTB], i));
+        } else {
+            SET_BIT(mcu.data[REG_PINB], i, gpioRead(i + 0));
+        }
+
+        if (GET_BIT(mcu.data[REG_DDRC], i)) {
+            gpioWrite(i + 8, GET_BIT(mcu.data[REG_PORTC], i));
+        } else {
+            SET_BIT(mcu.data[REG_PINB], i, gpioRead(i + 8));
+        }
+
+        if (GET_BIT(mcu.data[REG_DDRD], i)) {
+            gpioWrite(i + 16, GET_BIT(mcu.data[REG_PORTD], i));
+        } else {
+            SET_BIT(mcu.data[REG_PIND], i, gpioRead(i + 16));
+        }
+    }
+
+    ddrb_state = mcu.data[REG_DDRB];
+    ddrc_state = mcu.data[REG_DDRC];
+    ddrd_state = mcu.data[REG_DDRD];
+    portb_state = mcu.data[REG_PORTB];
+    portc_state = mcu.data[REG_PORTC];
+    portd_state = mcu.data[REG_PORTD];
+}
+
+static inline void loop(void) {
     struct timespec t0, t1;
     int cycles;
     long err = 0; // measures accumulation of error each iteration
@@ -86,6 +200,18 @@ static inline void run(void) {
                 (void)clock_gettime(CLOCK_MONOTONIC, &t0);
             }
         }
+
+        // update_ddr(REG_DDRB, &ddrb_state, 0);
+        // update_ddr(REG_DDRC, &ddrc_state, 8);
+        // update_ddr(REG_DDRD, &ddrd_state, 16);
+
+        // update_pin(REG_PINB, REG_DDRB, 0);
+        // update_pin(REG_PINC, REG_DDRC, 8);
+        // update_pin(REG_PIND, REG_DDRD, 16);
+
+        // update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
+        // update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
+        // update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
     }
 }
 
@@ -156,7 +282,11 @@ int main(int argc, char *argv[]) {
         goto error;
     } else {
         if (signal(SIGINT, signal_handler) != SIG_ERR) {
-            run();
+            setup();
+            loop();
+        }
+        for (int i = 0; i < 24; i++) {
+            gpioSetMode(i, PI_INPUT); // cleanup
         }
         gpioTerminate();
     }
