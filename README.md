@@ -6,14 +6,14 @@ ATmega328P emulator enabling Arduino code to run on a Raspberry Pi
 
 - Entire AVR instruction set supported by the ATmega328P
 - Interrupts
+- Pin mapping to Raspberry Pi GPIO
 - PWM output pins
-- Accurate simulated frequency of up to 16MHz
+- SPI and I2C
+- Accurate simulated frequency of up to 8MHz, inaccurate simulated frequency of up to 16MHz
 
 ## Planned Features
 
-- Pin mapping to Raspberry Pi GPIO
 - USART to stdout/stdin
-- SPI and I2C
 - ADC
 - EEPROM read/write
 - Sleep modes
