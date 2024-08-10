@@ -18,11 +18,12 @@ set_target_properties(avr-pi-lib PROPERTIES COMPILE_FLAGS "${AVR_PI_FLAGS}")
 
 # avr-pi cli
 add_executable(avr-pi "${CMAKE_CURRENT_SOURCE_DIR}/src/pi.c")
-if(pigpio)
-    target_link_libraries(avr-pi PRIVATE avr-pi-lib pigpio)
-else()
+if(${AVR_NO_PI})
+    message(WARNING "You are compiling in AVR_NO_PI mode, Raspberry Pi interface is stripped")
+    target_compile_definitions(avr-pi  PRIVATE -DAVR_NO_PI)
     target_link_libraries(avr-pi PRIVATE avr-pi-lib)
-    message(WARNING "pigpio not found! this should only be the case for testing")
+else()
+    target_link_libraries(avr-pi PRIVATE avr-pi-lib pigpio)
 endif()
 
 # avr-pi tests

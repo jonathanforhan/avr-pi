@@ -45,10 +45,6 @@
  * PD7  23    7
  */
 
-#ifdef __arm__
-#define __raspberry_pi__
-#endif
-
 #include <fcntl.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -63,7 +59,7 @@
 #include <avr.h>
 #include "defs.h"
 
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
 #include <pigpio.h>
 #include "avr_defs.h"
 #endif
@@ -102,7 +98,7 @@ static void print_help(void) {
         "\tavr-pi {file}.hex\tExecute a compiled AVR hex file.\n");
 }
 
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
 // update ddr on GPIO
 // reg: AVR reg
 // state: global state ptr
@@ -150,7 +146,7 @@ static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t *state, uint8_t
 #endif
 
 static inline void setup(void) {
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
     for (int i = 0; i < 8; i++) {
         gpioSetMode(i + 0, GET_BIT(mcu.data[REG_DDRB], i) ? PI_OUTPUT : PI_INPUT);
         gpioSetMode(i + 8, GET_BIT(mcu.data[REG_DDRC], i) ? PI_OUTPUT : PI_INPUT);
@@ -212,7 +208,7 @@ static inline void loop(void) {
             }
         }
 
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
         update_ddr(REG_DDRB, &ddrb_state, 0);
         update_ddr(REG_DDRC, &ddrc_state, 8);
         update_ddr(REG_DDRD, &ddrd_state, 16);
@@ -291,7 +287,7 @@ int main(int argc, char *argv[]) {
     free(buf);
     buf = NULL;
 
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
     if (gpioInitialise() == PI_INIT_FAILED) {
         LOG_ERROR("failed to initialize GPIO interface");
         goto error;
@@ -301,7 +297,7 @@ int main(int argc, char *argv[]) {
             setup();
             loop();
         }
-#ifdef __raspberry_pi__
+#ifndef AVR_NO_PI
         for (int i = 0; i < 24; i++) {
             gpioSetMode(i, PI_INPUT); // cleanup
         }

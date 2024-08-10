@@ -36,6 +36,20 @@
         {
             "name": "release",
             "inherits": [ "base", "release-base" ]
+        },
+        {
+            "name": "debug-no-pi",
+            "inherits": [ "base", "debug-base" ],
+            "cacheVariables": {
+                "AVR_NO_PI" : true
+            }
+        },
+        {
+            "name": "release-no-pi",
+            "inherits": [ "base", "release-base" ],
+            "cacheVariables": {
+                "AVR_NO_PI" : true
+            }
         }
     ]
 }
