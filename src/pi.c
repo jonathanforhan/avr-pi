@@ -45,8 +45,11 @@
  * PD7  23    7
  */
 
+#ifdef __arm__
+#define __raspberry_pi__
+#endif
+
 #include <fcntl.h>
-#include <pigpio.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -58,8 +61,12 @@
 #include <unistd.h>
 
 #include <avr.h>
-#include "avr_defs.h"
 #include "defs.h"
+
+#ifdef __raspberry_pi__
+#include <pigpio.h>
+#include "avr_defs.h"
+#endif
 
 #define VERSION  "0.0.0"
 #define MAX_PATH 260
@@ -95,6 +102,7 @@ static void print_help(void) {
         "\tavr-pi {file}.hex\tExecute a compiled AVR hex file.\n");
 }
 
+#ifdef __raspberry_pi__
 // update ddr on GPIO
 // reg: AVR reg
 // state: global state ptr
@@ -139,8 +147,10 @@ static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t *state, uint8_t
         *state = mcu.data[reg];
     }
 }
+#endif
 
 static inline void setup(void) {
+#ifdef __raspberry_pi__
     for (int i = 0; i < 8; i++) {
         gpioSetMode(i + 0, GET_BIT(mcu.data[REG_DDRB], i) ? PI_OUTPUT : PI_INPUT);
         gpioSetMode(i + 8, GET_BIT(mcu.data[REG_DDRC], i) ? PI_OUTPUT : PI_INPUT);
@@ -171,6 +181,7 @@ static inline void setup(void) {
     portb_state = mcu.data[REG_PORTB];
     portc_state = mcu.data[REG_PORTC];
     portd_state = mcu.data[REG_PORTD];
+#endif
 }
 
 static inline void loop(void) {
@@ -201,6 +212,7 @@ static inline void loop(void) {
             }
         }
 
+#ifdef __raspberry_pi__
         update_ddr(REG_DDRB, &ddrb_state, 0);
         update_ddr(REG_DDRC, &ddrc_state, 8);
         update_ddr(REG_DDRD, &ddrd_state, 16);
@@ -213,6 +225,7 @@ static inline void loop(void) {
         update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
         update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
         update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
+#endif
     }
 }
 
@@ -278,19 +291,23 @@ int main(int argc, char *argv[]) {
     free(buf);
     buf = NULL;
 
+#ifdef __raspberry_pi__
     if (gpioInitialise() == PI_INIT_FAILED) {
         LOG_ERROR("failed to initialize GPIO interface");
         goto error;
     } else {
+#endif
         if (signal(SIGINT, signal_handler) != SIG_ERR) {
             setup();
             loop();
         }
+#ifdef __raspberry_pi__
         for (int i = 0; i < 24; i++) {
             gpioSetMode(i, PI_INPUT); // cleanup
         }
         gpioTerminate();
     }
+#endif
 
     return 0;
 
