@@ -228,9 +228,10 @@ static inline void loop(void) {
 int main(int argc, char *argv[]) {
     char *buf = NULL;
     int fd    = -1;
+    int ret   = 0;
     struct stat st;
 
-    if (argc < 2) {
+    if (argc != 2) {
         goto error;
     } else if (strncmp(argv[1], "--help", 6) == 0) {
         print_help();
@@ -240,6 +241,7 @@ int main(int argc, char *argv[]) {
         return 0;
     } else if (strnlen(argv[1], MAX_PATH) <= 4 || strcasecmp(strrchr(argv[1], '.'), ".hex") != 0) {
         LOG_ERROR("invalid hex file");
+        print_help();
         goto error;
     }
 
@@ -296,6 +298,9 @@ int main(int argc, char *argv[]) {
         if (signal(SIGINT, signal_handler) != SIG_ERR) {
             setup();
             loop();
+        } else {
+            LOG_ERROR("failed to setup SIGINT handler");
+            ret = -1; // don't goto error because gpio needs to be terminated
         }
 #ifndef AVR_NO_PI
         for (int i = 0; i < 24; i++) {
@@ -305,11 +310,10 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    return 0;
+    return ret;
 
 error:
     close(fd);
     free(buf);
-    print_help();
     return -1;
 }
