@@ -990,7 +990,7 @@ static AVR_Result test_data_transfer_instructions(void) {
         }
     }
 
-    // push
+    // pop
     {
         u8 expected = 42;
 

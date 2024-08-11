@@ -111,7 +111,7 @@ extern "C" {
  * @def AVR_MCU_CLK_SPEED
  * @brief Clock speed of 16MHz
  */
-#define AVR_MCU_CLK_SPEED 16320000L
+#define AVR_MCU_CLK_SPEED 16000000L
 
 /**
  * @def AVR_MCU_CLK_PERIOD
@@ -196,9 +196,6 @@ typedef enum AVR_Result {
  * @brief AVR Microcontroller.
  */
 typedef struct AVR_MCU {
-    /** @brief Idle mode enabled. */
-    bool idle;
-
     /** @brief PMW invert. */
     bool pwm_invert;
 
@@ -206,7 +203,7 @@ typedef struct AVR_MCU {
     uint16_t clk;
 
     /** @brief Program counter. */
-    uint_fast16_t pc;
+    uint16_t pc;
 
     /** @brief Status Register. */
     uint8_t *sreg;

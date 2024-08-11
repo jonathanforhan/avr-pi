@@ -52,7 +52,7 @@ static inline int add(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
     SET_BIT(*mcu->sreg, SREG_H, (Rd3 & Rr3) | (Rr3 & ~R3) | (~R3 & Rd3));
@@ -87,7 +87,7 @@ static inline int adc(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = Rd3 & Rr3 | Rr3 & ~R3 | ~R3 & Rd3
     SET_BIT(*mcu->sreg, SREG_H, (Rd3 & Rr3) | (Rr3 & ~R3) | (~R3 & Rd3));
@@ -122,7 +122,7 @@ static inline int adiw(AVR_MCU *restrict mcu, u8 d, u8 K) {
     const u8 R15  = GET_BIT(R, 15);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -155,7 +155,7 @@ static inline int sub(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
@@ -189,7 +189,7 @@ static inline int subi(AVR_MCU *restrict mcu, u8 d, u8 K) {
     const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
@@ -224,7 +224,7 @@ static inline int sbc(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
@@ -258,7 +258,7 @@ static inline int sbci(AVR_MCU *restrict mcu, u8 d, u8 K) {
     const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
@@ -293,7 +293,7 @@ static inline int sbiw(AVR_MCU *restrict mcu, u8 d, u8 K) {
     const u8 R15  = GET_BIT(R, 15);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -323,7 +323,7 @@ static inline int and (AVR_MCU *restrict mcu, u8 d, const u8 r) {
     *Rd = *Rd & *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -348,7 +348,7 @@ static inline int andi(AVR_MCU *restrict mcu, u8 d, u8 K) {
     *Rd = *Rd & K;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -374,7 +374,7 @@ static inline int or (AVR_MCU *restrict mcu, u8 d, const u8 r) {
     *Rd = *Rd | *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -399,7 +399,7 @@ static inline int ori(AVR_MCU *restrict mcu, u8 d, u8 K) {
     *Rd = *Rd | K;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -425,7 +425,7 @@ static inline int eor(AVR_MCU *restrict mcu, u8 d, u8 r) {
     *Rd = *Rd ^ *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -449,7 +449,7 @@ static inline int com(AVR_MCU *restrict mcu, u8 d) {
     *Rd = 0xFF - *Rd;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -475,7 +475,7 @@ static inline int neg(AVR_MCU *restrict mcu, u8 d) {
     const u8 R = 0x00 - *Rd;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, GET_BIT(R, 3) & ~GET_BIT(*Rd, 3));
@@ -505,7 +505,7 @@ static inline int inc(AVR_MCU *restrict mcu, u8 d) {
     *Rd = *Rd + 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -529,7 +529,7 @@ static inline int dec(AVR_MCU *restrict mcu, u8 d) {
     *Rd = *Rd - 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -553,7 +553,7 @@ static inline int ser(AVR_MCU *restrict mcu, u8 d) {
     *Rd = 0xFF;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -570,7 +570,7 @@ static inline int mul(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u16 R = (u16)*Rd * (u16)*Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R15
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 15));
@@ -594,7 +594,7 @@ static inline int muls(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const i16 R = (i16)(*Rd * *Rr);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R15
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 15));
@@ -618,7 +618,7 @@ static inline int mulsu(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const i16 R = (i16)(*Rd * *Rr);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R15
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 15));
@@ -642,7 +642,7 @@ static inline int fmul(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u32 R = (*Rd * *Rr) << 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R16
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 16));
@@ -666,7 +666,7 @@ static inline int fmuls(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const i32 R = (*Rd * *Rr) << 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R16
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 16));
@@ -690,7 +690,7 @@ static inline int fmulsu(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const i32 R = (*Rd * *Rr) << 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // C = R16
     SET_BIT(*mcu->sreg, SREG_C, GET_BIT(R, 16));
@@ -793,11 +793,7 @@ static inline int ret(AVR_MCU *restrict mcu) {
 
 // reti - return from interrupt
 static inline int reti(AVR_MCU *restrict mcu) {
-    // PC(15:0) <- STACK
-    mcu->pc = *(u16 *)&mcu->data[*mcu->sp];
-
-    // SP <- PC + 2
-    *mcu->sp += 2;
+    (void)ret(mcu);
 
     // I = 1
     PUT_BIT(*mcu->sreg, SREG_I);
@@ -843,7 +839,7 @@ static inline int cp(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
@@ -876,7 +872,7 @@ static inline int cpc(AVR_MCU *restrict mcu, u8 d, u8 r) {
     const u8 Rd7 = GET_BIT(*Rd, 7), Rr7 = GET_BIT(*Rr, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & Rr3 | Rr3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & Rr3) | (Rr3 & R3) | (R3 & ~Rd3));
@@ -908,7 +904,7 @@ static inline int cpi(AVR_MCU *restrict mcu, u8 d, u8 K) {
     const u8 Rd7 = GET_BIT(*Rd, 7), K7 = GET_BIT(K, 7), R7 = GET_BIT(R, 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // H = ~Rd3 & K3 | K3 & R3 | R3 & ~Rd3
     SET_BIT(*mcu->sreg, SREG_H, (~Rd3 & K3) | (K3 & R3) | (R3 & ~Rd3));
@@ -1021,7 +1017,7 @@ static inline int brbs(AVR_MCU *restrict mcu, u8 s, i8 k) {
         mcu->pc += k + 1;
         return 2;
     } else {
-        mcu->pc++;
+        mcu->pc += 1;
         return 1;
     }
 }
@@ -1037,7 +1033,7 @@ static inline int brbc(AVR_MCU *restrict mcu, u8 s, i8 k) {
         mcu->pc += k + 1;
         return 2;
     } else {
-        mcu->pc++;
+        mcu->pc += 1;
         return 1;
     }
 }
@@ -1055,7 +1051,7 @@ static inline int sbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
     PUT_BIT(mcu->io_reg[A], b);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1069,7 +1065,7 @@ static inline int cbi(AVR_MCU *restrict mcu, u8 A, u8 b) {
     CLR_BIT(mcu->io_reg[A], b);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1084,7 +1080,7 @@ static inline int lsr(AVR_MCU *restrict mcu, u8 d) {
     const u8 R = *Rd >> 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -1115,7 +1111,7 @@ static inline int ror(AVR_MCU *restrict mcu, u8 d) {
     const u8 R = (*Rd >> 1) | (GET_BIT(*mcu->sreg, SREG_C) << 7);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -1146,7 +1142,7 @@ static inline int asr(AVR_MCU *restrict mcu, u8 d) {
     const u8 R = ((i8)*Rd) >> 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // S = N ^ V
     SET_BIT(*mcu->sreg, SREG_S, GET_BIT(*mcu->sreg, SREG_N) ^ GET_BIT(*mcu->sreg, SREG_V));
@@ -1177,7 +1173,7 @@ static inline int swap(AVR_MCU *restrict mcu, u8 d) {
     const u8 R = (*Rd >> 4) | (*Rd << 4);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     *Rd = R;
 
@@ -1192,7 +1188,7 @@ static inline int bset(AVR_MCU *restrict mcu, u8 s) {
     PUT_BIT(*mcu->sreg, s);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // I = 1 if s == 7; unchanged otherwise.
     // T = 1 if s == 6; unchanged otherwise.
@@ -1214,7 +1210,7 @@ static inline int bclr(AVR_MCU *restrict mcu, u8 s) {
     CLR_BIT(*mcu->sreg, s);
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // I = 0 if s == 7; unchanged otherwise.
     // T = 0 if s == 6; unchanged otherwise.
@@ -1239,7 +1235,7 @@ static inline int bst(AVR_MCU *restrict mcu, u8 r, u8 b) {
     SET_BIT(*mcu->sreg, SREG_T, GET_BIT(*Rr, b));
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     // T = 0 if bit b in Rr is cleared. Set to 1 otherwise.
 
@@ -1257,7 +1253,7 @@ static inline int bld(AVR_MCU *restrict mcu, u8 d, u8 b) {
     SET_BIT(*Rd, b, GET_BIT(*mcu->sreg, SREG_T));
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1278,7 +1274,7 @@ static inline int mov(AVR_MCU *restrict mcu, u8 d, u8 r) {
     *Rd = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1295,7 +1291,7 @@ static inline int movw(AVR_MCU *restrict mcu, u8 d, u8 r) {
     *Rd = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1311,7 +1307,7 @@ static inline int ldi(AVR_MCU *restrict mcu, u8 d, u8 K) {
     *Rd = K;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1327,20 +1323,20 @@ static inline int ld_x(AVR_MCU *restrict mcu, u8 d) {
     *Rd = mcu->data[X];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
 
 static inline int ld_x_postinc(AVR_MCU *restrict mcu, u8 d) {
     ld_x(mcu, d);
-    (*(u16 *)&mcu->reg[REG_X])++;
+    *(u16 *)&mcu->reg[REG_X] += 1;
 
     return 2;
 }
 
 static inline int ld_x_predec(AVR_MCU *restrict mcu, u8 d) {
-    (*(u16 *)&mcu->reg[REG_X])--;
+    *(u16 *)&mcu->reg[REG_X] -= 1;
     ld_x(mcu, d);
 
     return 2;
@@ -1356,20 +1352,20 @@ static inline int ld_y(AVR_MCU *restrict mcu, u8 d) {
     *Rd = mcu->data[Y];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
 
 static inline int ld_y_postinc(AVR_MCU *restrict mcu, u8 d) {
     ld_y(mcu, d);
-    (*(u16 *)&mcu->reg[REG_Y])++;
+    *(u16 *)&mcu->reg[REG_Y] += 1;
 
     return 2;
 }
 
 static inline int ld_y_predec(AVR_MCU *restrict mcu, u8 d) {
-    (*(u16 *)&mcu->reg[REG_Y])--;
+    *(u16 *)&mcu->reg[REG_Y] -= 1;
     ld_y(mcu, d);
 
     return 2;
@@ -1385,20 +1381,20 @@ static inline int ld_z(AVR_MCU *restrict mcu, u8 d) {
     *Rd = mcu->data[Z];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
 
 static inline int ld_z_postinc(AVR_MCU *restrict mcu, u8 d) {
     ld_z(mcu, d);
-    (*(u16 *)&mcu->reg[REG_Z])++;
+    *(u16 *)&mcu->reg[REG_Z] += 1;
 
     return 2;
 }
 
 static inline int ld_z_predec(AVR_MCU *restrict mcu, u8 d) {
-    (*(u16 *)&mcu->reg[REG_Z])--;
+    *(u16 *)&mcu->reg[REG_Z] -= 1;
     ld_z(mcu, d);
 
     return 2;
@@ -1412,11 +1408,13 @@ static inline int ldd_y(AVR_MCU *restrict mcu, u8 d, u8 q) {
     u8 *Rd      = &mcu->reg[d];
     const u16 Y = *(u16 *)&mcu->reg[REG_Y];
 
-    // Rd <- (Y)
+    ASSERT_BOUNDS(Y + q, 0, AVR_MCU_RAMEND);
+
+    // Rd <- (Y + q)
     *Rd = mcu->data[Y + q];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1428,11 +1426,13 @@ static inline int ldd_z(AVR_MCU *restrict mcu, u8 d, u8 q) {
     u8 *Rd      = &mcu->reg[d];
     const u16 Z = *(u16 *)&mcu->reg[REG_Z];
 
-    // Rd <- (Z)
+    ASSERT_BOUNDS(Z + q, 0, AVR_MCU_RAMEND);
+
+    // Rd <- (Z + q)
     *Rd = mcu->data[Z + q];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1464,19 +1464,19 @@ static inline int st_x(AVR_MCU *restrict mcu, u8 r) {
     mcu->data[X] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1 + IS_IO_SPACE(X);
 }
 
 static inline int st_x_postinc(AVR_MCU *restrict mcu, u8 r) {
     int ret = st_x(mcu, r);
-    (*(u16 *)&mcu->reg[REG_X])++;
+    *(u16 *)&mcu->reg[REG_X] += 1;
     return ret;
 }
 
 static inline int st_x_predec(AVR_MCU *restrict mcu, u8 r) {
-    (*(u16 *)&mcu->reg[REG_X])--;
+    *(u16 *)&mcu->reg[REG_X] -= 1;
     return st_x(mcu, r) + 1;
 }
 
@@ -1490,20 +1490,20 @@ static inline int st_y(AVR_MCU *restrict mcu, u8 r) {
     mcu->data[Y] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2 + IS_IO_SPACE(Y);
 }
 
 static inline int st_y_postinc(AVR_MCU *restrict mcu, u8 r) {
     int ret = st_y(mcu, r);
-    (*(u16 *)&mcu->reg[REG_Y])++;
+    *(u16 *)&mcu->reg[REG_Y] += 1;
 
     return ret;
 }
 
 static inline int st_y_predec(AVR_MCU *restrict mcu, u8 r) {
-    (*(u16 *)&mcu->reg[REG_Y])--;
+    *(u16 *)&mcu->reg[REG_Y] -= 1;
     return st_y(mcu, r);
 }
 
@@ -1517,20 +1517,20 @@ static inline int st_z(AVR_MCU *restrict mcu, u8 r) {
     mcu->data[Z] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2 + IS_IO_SPACE(Z);
 }
 
 static inline int st_z_postinc(AVR_MCU *restrict mcu, u8 r) {
     int ret = st_z(mcu, r);
-    (*(u16 *)&mcu->reg[REG_Z])++;
+    *(u16 *)&mcu->reg[REG_Z] += 1;
 
     return ret;
 }
 
 static inline int st_z_predec(AVR_MCU *restrict mcu, u8 r) {
-    (*(u16 *)&mcu->reg[REG_Z])--;
+    *(u16 *)&mcu->reg[REG_Z] -= 1;
     return st_z(mcu, r);
 }
 
@@ -1542,11 +1542,13 @@ static inline int std_y(AVR_MCU *restrict mcu, u8 q, u8 r) {
     const u8 *Rr = &mcu->reg[r];
     const u16 Y  = *(u16 *)&mcu->reg[REG_Y];
 
-    // (Y) <- Rr
+    ASSERT_BOUNDS(Y + q, 0, AVR_MCU_RAMEND);
+
+    // (Y + q) <- Rr
     mcu->data[Y + q] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2 + IS_IO_SPACE(Y);
 }
@@ -1558,11 +1560,13 @@ static inline int std_z(AVR_MCU *restrict mcu, u8 q, u8 r) {
     const u8 *Rr = &mcu->reg[r];
     const u16 Z  = *(u16 *)&mcu->reg[REG_Z];
 
-    // (Z) <- Rr
+    ASSERT_BOUNDS(Z + q, 0, AVR_MCU_RAMEND);
+
+    // (Z + q) <- Rr
     mcu->data[Z + q] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2 + IS_IO_SPACE(Z);
 }
@@ -1594,14 +1598,14 @@ static inline int lpm(AVR_MCU *restrict mcu, u8 d) {
     *Rd = ((u8 *)&mcu->flash)[Z];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 3;
 }
 
 static inline int lpm_postinc(AVR_MCU *restrict mcu, u8 d) {
     lpm(mcu, d);
-    (*(u16 *)&mcu->reg[REG_Z])++;
+    *(u16 *)&mcu->reg[REG_Z] += 1;
 
     return 3;
 }
@@ -1615,7 +1619,7 @@ static inline int spm(AVR_MCU *restrict mcu) {
     mcu->flash[Z] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 4; // device dependent, 4 sounds good
 }
@@ -1631,7 +1635,7 @@ static inline int in(AVR_MCU *restrict mcu, u8 d, u8 A) {
     *Rd = mcu->io_reg[A];
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1647,7 +1651,7 @@ static inline int out(AVR_MCU *restrict mcu, u8 A, u8 r) {
     mcu->io_reg[A] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1659,13 +1663,13 @@ static inline int push(AVR_MCU *restrict mcu, u8 r) {
     const u8 *Rr = &mcu->reg[r];
 
     // SP <- SP - 1
-    (*mcu->sp)--;
+    *mcu->sp -= 1;
 
     // STACK <- Rr
     mcu->data[*mcu->sp] = *Rr;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1680,10 +1684,10 @@ static inline int pop(AVR_MCU *restrict mcu, u8 d) {
     *Rd = mcu->data[*mcu->sp];
 
     // SP <- SP + 1
-    (*mcu->sp)++;
+    *mcu->sp += 1;
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 2;
 }
@@ -1695,7 +1699,7 @@ static inline int pop(AVR_MCU *restrict mcu, u8 d) {
 // nop - no operation
 static inline int nop(AVR_MCU *restrict mcu) {
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1704,8 +1708,6 @@ static inline int nop(AVR_MCU *restrict mcu) {
 static inline int sleep(AVR_MCU *restrict mcu) {
     switch (mcu->data[REG_SMCR]) {
     case SLEEP_IDLE:
-        mcu->idle = true;
-        break;
     case SLEEP_ADC_NR:
     case SLEEP_POWER_DOWN:
     case SLEEP_POWER_SAVE:
@@ -1714,7 +1716,7 @@ static inline int sleep(AVR_MCU *restrict mcu) {
     }
 
     // PC <- PC + 1
-    mcu->pc++;
+    mcu->pc += 1;
 
     return 1;
 }
@@ -1779,13 +1781,13 @@ static inline void comp_normal(AVR_MCU *restrict mcu, u8 reg, u8 bit, u8 com) {
 static inline void comp_pwm(AVR_MCU *restrict mcu, u8 reg, u8 bit, u8 com, bool reverse) {
     switch (com) {
     case 1:
-        TGL_BIT(mcu->data[reg], bit);
+        TGL_BIT(mcu->reg[reg], bit);
         break;
     case 2:
-        SET_BIT(mcu->data[reg], bit, reverse);
+        SET_BIT(mcu->reg[reg], bit, reverse);
         break;
     case 3:
-        SET_BIT(mcu->data[reg], bit, !reverse);
+        SET_BIT(mcu->reg[reg], bit, !reverse);
         break;
     }
 }
@@ -1806,7 +1808,7 @@ static inline void timer0_tick(AVR_MCU *restrict mcu) {
 
     switch (wgm0) {
     case 0: // NORMAL
-        (*tcnt0)++;
+        *tcnt0 += 1;
 
         if (*tcnt0 == mcu->data[REG_OCR0A]) {
             PUT_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
@@ -1834,7 +1836,6 @@ static inline void timer0_tick(AVR_MCU *restrict mcu) {
         top0 = mcu->data[REG_OCR0A];
         __attribute__((fallthrough));
     case 3:
-
         *tcnt0 = (*tcnt0 + 1) % (top0 + 1);
 
         if (*tcnt0 == mcu->data[REG_OCR0A]) {
@@ -1917,7 +1918,7 @@ static inline void timer1_tick(AVR_MCU *restrict mcu) {
 
     switch (wgm1) {
     case 0: // NORMAL
-        (*tcnt1)++;
+        *tcnt1 += 1;
 
         if (*tcnt1 == *(u16 *)&mcu->data[REG_OCR1AL]) {
             PUT_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
@@ -2020,7 +2021,7 @@ static inline void timer2_tick(AVR_MCU *restrict mcu) {
 
     switch (wgm2) {
     case 0: // NORMAL
-        (*tcnt2)++;
+        *tcnt2 += 1;
 
         if (*tcnt2 == mcu->data[REG_OCR2A]) {
             PUT_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
@@ -2130,11 +2131,11 @@ void avr_mcu_init(AVR_MCU *restrict mcu) {
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
     while (*hex) {
         if (*hex != ':') {
-            hex++;
+            hex += 1;
             continue;
         }
 
-        hex++;
+        hex += 1;
 
         const u8 len = xstr2byte(hex);
         hex += 2;
@@ -2183,7 +2184,7 @@ AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
 }
 
 int avr_execute(AVR_MCU *const restrict mcu) {
-    ASSERT_BOUNDS(*mcu->sp, 0, AVR_MCU_DATA_SIZE - 1);
+    ASSERT_BOUNDS(*mcu->sp, AVR_MCU_SRAM_OFFSET, AVR_MCU_DATA_SIZE - 1);
     ASSERT_BOUNDS(mcu->pc, 0, AVR_MCU_FLASH_SIZE - 1);
 
     const u16 op = mcu->flash[mcu->pc];
@@ -2727,11 +2728,13 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     }
     }
 
-    LOG_ERROR("unknown op: %#x pc: %lu sp: %u", op, mcu->pc, *mcu->sp);
+    LOG_ERROR("unknown op: %#x pc: %u sp: %u", op, mcu->pc, *mcu->sp);
     exit(EXIT_FAILURE);
 }
 
 int avr_interrupt(AVR_MCU *restrict mcu) {
+    int ret;
+
     // global interrupts are disabled
     if (GET_BIT(*mcu->sreg, SREG_I) == 0) {
         return 0;
@@ -2758,21 +2761,24 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
     if (mcu->data[REG_TIMSK2]) {
         // timer2 compa
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_OCF2A) && GET_BIT(mcu->data[REG_TIMSK2], 1)) {
-            CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
             PRINT_DEBUG("int timer2 compa");
-            return isr(mcu, IV_TIMER2_COMPA);
+            ret = isr(mcu, IV_TIMER2_COMPA);
+            CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2A);
+            return ret;
         }
         // timer2 compb
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_OCF2B) && GET_BIT(mcu->data[REG_TIMSK2], 2)) {
-            CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
             PRINT_DEBUG("int timer2 compb");
-            return isr(mcu, IV_TIMER2_COMPB);
+            ret = isr(mcu, IV_TIMER2_COMPB);
+            CLR_BIT(mcu->data[REG_TIFR2], BIT_OCF2B);
+            return ret;
         }
         // timer2 ovf
         if (GET_BIT(mcu->data[REG_TIFR2], BIT_TOV2) && GET_BIT(mcu->data[REG_TIMSK2], 0)) {
-            CLR_BIT(mcu->data[REG_TIFR2], BIT_TOV2);
             PRINT_DEBUG("int timer2 ovf");
-            return isr(mcu, IV_TIMER2_OVF);
+            ret = isr(mcu, IV_TIMER2_OVF);
+            CLR_BIT(mcu->data[REG_TIFR2], BIT_TOV2);
+            return ret;
         }
     }
 
@@ -2780,42 +2786,48 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
         // timer1 capt (TODO)
         // timer1 compa
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_OCF1A) && GET_BIT(mcu->data[REG_TIMSK1], 1)) {
-            CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
             PRINT_DEBUG("int timer1 compa");
-            return isr(mcu, IV_TIMER1_COMPA);
+            ret = isr(mcu, IV_TIMER1_COMPA);
+            CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1A);
+            return ret;
         }
         // timer1 compb
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_OCF1B) && GET_BIT(mcu->data[REG_TIMSK1], 2)) {
-            CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
             PRINT_DEBUG("int timer1 compb");
-            return isr(mcu, IV_TIMER1_COMPB);
+            ret = isr(mcu, IV_TIMER1_COMPB);
+            CLR_BIT(mcu->data[REG_TIFR1], BIT_OCF1B);
+            return ret;
         }
         // timer1 ovf
         if (GET_BIT(mcu->data[REG_TIFR1], BIT_TOV1) && GET_BIT(mcu->data[REG_TIMSK1], 0)) {
-            CLR_BIT(mcu->data[REG_TIFR1], BIT_TOV1);
             PRINT_DEBUG("int timer1 ovf");
-            return isr(mcu, IV_TIMER1_OVF);
+            ret = isr(mcu, IV_TIMER1_OVF);
+            CLR_BIT(mcu->data[REG_TIFR1], BIT_TOV1);
+            return ret;
         }
     }
 
     if (mcu->data[REG_TIMSK0]) {
         // timer0 compa
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_OCF0A) && GET_BIT(mcu->data[REG_TIMSK0], 1)) {
-            CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
             PRINT_DEBUG("int timer0 compa");
-            return isr(mcu, IV_TIMER0_COMPA);
+            ret = isr(mcu, IV_TIMER0_COMPA);
+            CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0A);
+            return ret;
         }
         // timer0 compb
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_OCF0B) && GET_BIT(mcu->data[REG_TIMSK0], 2)) {
-            CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
             PRINT_DEBUG("int timer0 compb");
-            return isr(mcu, IV_TIMER0_COMPB);
+            ret = isr(mcu, IV_TIMER0_COMPB);
+            CLR_BIT(mcu->data[REG_TIFR0], BIT_OCF0B);
+            return ret;
         }
         // timer0 ovf
         if (GET_BIT(mcu->data[REG_TIFR0], BIT_TOV0) && GET_BIT(mcu->data[REG_TIMSK0], 0)) {
-            CLR_BIT(mcu->data[REG_TIFR0], BIT_TOV0);
             PRINT_DEBUG("int timer0 ovf");
-            return isr(mcu, IV_TIMER0_OVF);
+            ret = isr(mcu, IV_TIMER0_OVF);
+            CLR_BIT(mcu->data[REG_TIFR0], BIT_TOV0);
+            return ret;
         }
     }
 
@@ -2824,29 +2836,34 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
     // usart rx
     if (GET_BIT(mcu->data[REG_UCSR0B], BIT_RXCIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_RXC0)) {
         PRINT_DEBUG("int usart rx");
-        return isr(mcu, IV_USART_RX);
+        ret = isr(mcu, IV_USART_RX);
+        CLR_BIT(mcu->data[REG_UCSR0A], BIT_RXC0);
+        return ret;
     }
 
     // usart udre
     if (GET_BIT(mcu->data[REG_UCSR0B], BIT_UDRIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_UDRE0)) {
         PRINT_DEBUG("int usart udre");
-        return isr(mcu, IV_USART_UDRE);
+        ret = isr(mcu, IV_EE_READY);
+        return ret;
     }
 
     // usart tx
     if (GET_BIT(mcu->data[REG_UCSR0B], BIT_TXCIE0) && GET_BIT(mcu->data[REG_UCSR0A], BIT_TXC0)) {
-        CLR_BIT(mcu->data[REG_UCSR0A], BIT_TXC0);
         PRINT_DEBUG("int usart tx");
-        return isr(mcu, IV_USART_TX);
+        ret = isr(mcu, IV_USART_TX);
+        CLR_BIT(mcu->data[REG_UCSR0A], BIT_TXC0);
+        return ret;
     }
 
     // adc
 
     // ee ready
     if (GET_BIT(mcu->data[REG_EECR], BIT_EERIE)) {
-        CLR_BIT(mcu->data[REG_EECR], BIT_EERIE);
         PRINT_DEBUG("int ee ready");
-        return isr(mcu, IV_EE_READY);
+        ret = isr(mcu, IV_EE_READY);
+        CLR_BIT(mcu->data[REG_EECR], BIT_EERIE);
+        return ret;
     }
 
     // analong comp
@@ -2860,7 +2877,7 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
 }
 
 void avr_cycle(AVR_MCU *restrict mcu) {
-    mcu->clk++;
+    mcu->clk += 1;
 
     timer0_tick(mcu);
     timer1_tick(mcu);

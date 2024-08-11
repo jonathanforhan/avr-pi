@@ -57,11 +57,11 @@
 #include <unistd.h>
 
 #include <avr.h>
+#include "avr_defs.h"
 #include "defs.h"
 
 #ifndef AVR_NO_PI
 #include <pigpio.h>
-#include "avr_defs.h"
 #endif
 
 #define VERSION  "0.0.0"
@@ -81,6 +81,7 @@ static volatile sig_atomic_t sigint = 0;
 static uint8_t ddrb_state, portb_state; // b
 static uint8_t ddrc_state, portc_state; // c
 static uint8_t ddrd_state, portd_state; // d
+static int stdin_fd;
 
 static void signal_handler(int sig) {
     sigint = sig;
@@ -146,6 +147,10 @@ static inline void update_port(uint8_t reg, uint8_t ddr, uint8_t *state, uint8_t
 #endif
 
 static inline void setup(void) {
+    setbuf(stdout, NULL); // unbuffered
+    stdin_fd = open("/dev/tty", O_NONBLOCK);
+    assert(!(stdin_fd < 0));
+
 #ifndef AVR_NO_PI
     for (int i = 0; i < 8; i++) {
         gpioSetMode(i + 0, GET_BIT(mcu.data[REG_DDRB], i) ? PI_OUTPUT : PI_INPUT);
@@ -183,12 +188,42 @@ static inline void setup(void) {
 static inline void loop(void) {
     struct timespec t0, t1;
     int cycles;
-    long err = 0; // measures accumulation of error each iteration
+    char c;
+    long err       = 0; // measures accumulation of error each iteration
+    uint32_t iters = 0; // used for extended timings 0..999,999
 
     while (!sigint) {
         (void)clock_gettime(CLOCK_MONOTONIC, &t0);
 
         cycles = avr_execute(&mcu);
+
+        // link tx to stdout
+        if (GET_BIT(mcu.data[REG_UCSR0A], BIT_TXC0)) {
+            // clear tx bit if tx interrupts are NOT enabled
+            SET_BIT(mcu.data[REG_UCSR0A], BIT_TXC0, GET_BIT(mcu.data[REG_UCSR0B], BIT_TXCIE0));
+            putchar(mcu.data[REG_UDR0]);
+        }
+        // link rx to stdin
+        else if (iters % 10000 == 0 && read(stdin_fd, &c, 1) > 0) {
+            // set rx bit if rx interrupts ARE enabled
+            PUT_BIT(mcu.data[REG_UCSR0A], BIT_RXC0);
+            mcu.data[REG_UDR0] = (char)c;
+        }
+
+#ifndef AVR_NO_PI
+        update_ddr(REG_DDRB, &ddrb_state, 0);
+        update_ddr(REG_DDRC, &ddrc_state, 8);
+        update_ddr(REG_DDRD, &ddrd_state, 16);
+
+        // TODO optimize, too slow
+        // update_pin(REG_PINB, REG_DDRB, 0);
+        // update_pin(REG_PINC, REG_DDRC, 8);
+        // update_pin(REG_PIND, REG_DDRD, 16);
+
+        update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
+        update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
+        update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
+#endif
 
         // spend approximately one clk period on each cycle
         // errors are tracked and accounted for
@@ -208,20 +243,7 @@ static inline void loop(void) {
             }
         }
 
-#ifndef AVR_NO_PI
-        update_ddr(REG_DDRB, &ddrb_state, 0);
-        update_ddr(REG_DDRC, &ddrc_state, 8);
-        update_ddr(REG_DDRD, &ddrd_state, 16);
-
-        // TODO optimize, too slow
-        // update_pin(REG_PINB, REG_DDRB, 0);
-        // update_pin(REG_PINC, REG_DDRC, 8);
-        // update_pin(REG_PIND, REG_DDRD, 16);
-
-        update_port(REG_PORTB, REG_DDRB, &portb_state, 0);
-        update_port(REG_PORTC, REG_DDRC, &portc_state, 8);
-        update_port(REG_PORTD, REG_DDRD, &portd_state, 16);
-#endif
+        iters = (iters + 1) % 1000000;
     }
 }
 
