@@ -280,11 +280,10 @@ static inline int sbci(AVR_MCU *restrict mcu, u8 d, u8 K) {
 
 // sbiw - subtract immediate from word
 static inline int sbiw(AVR_MCU *restrict mcu, u8 d, u8 K) {
-    ASSERT_BOUNDS(d, 0, 3);
+    ASSERT_BOUNDS(d, 24, 30);
     ASSERT_BOUNDS(K, 0, 63);
 
-    // reg pairs { 24, 26, 28, 30 }
-    u16 *Rd = (u16 *)&mcu->reg[d * 2 + 24];
+    u16 *Rd = (u16 *)&mcu->reg[d];
 
     // R <- Rd - K
     const u16 R = *Rd - K;
@@ -2330,21 +2329,23 @@ int avr_execute(AVR_MCU *const restrict mcu) {
         return cpc(mcu, d, r);
     }
     case OP_BRBC: {
-        const u8 s = MSK(op, 0x0003);
+        const u8 s = MSK(op, 0x0007);
         const i8 k = I7_TO_I16(MSH(op, 0x03F8, 3));
+        PRINT_DEBUG("%#x", MSH(op, 0x03F8, 3));
         PRINT_DEBUG("%-8s %-8d %-8d", "brbc", s, k);
         return brbc(mcu, s, k);
     }
     case OP_BRBS: {
-        const u8 s = MSK(op, 0x0003);
+        const u8 s = MSK(op, 0x0007);
         const i8 k = I7_TO_I16(MSH(op, 0x03F8, 3));
+        PRINT_DEBUG("%#x", MSH(op, 0x03F8, 3));
         PRINT_DEBUG("%-8s %-8d %-8d", "brbs", s, k);
         return brbs(mcu, s, k);
     }
     case OP_MOV: {
         const u8 d = MSH(op, 0x01F0, 4);
         const u8 r = MSH(op, 0x0200, 5) | MSK(op, 0x000F);
-        PRINT_DEBUG("%-8s r%-7d ,r%-7d", "mov", d, r);
+        PRINT_DEBUG("%-8s r%-7d r%-7d", "mov", d, r);
         return mov(mcu, d, r);
     }
     }
@@ -2355,25 +2356,25 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     switch (op & OP_MASK_7_1) {
     case OP_SBRC: {
         const u8 r = MSH(op, 0x01F0, 4);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "sbrc", r, b);
         return sbrc(mcu, r, b);
     }
     case OP_SBRS: {
         const u8 r = MSH(op, 0x01F0, 4);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "sbrs", r, b);
         return sbrs(mcu, r, b);
     }
     case OP_BST: {
         const u8 r = MSH(op, 0x01F0, 4);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "bst", r, b);
         return bst(mcu, r, b);
     }
     case OP_BLD: {
         const u8 d = MSH(op, 0x01F0, 4);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s r%-7d %-8d", "bld", d, b);
         return bld(mcu, d, b);
     }
@@ -2568,7 +2569,7 @@ int avr_execute(AVR_MCU *const restrict mcu) {
         return adiw(mcu, d, K);
     }
     case OP_SBIW: {
-        const u8 d = MSH(op, 0x0030, 4);
+        const u8 d = MSH(op, 0x0030, 4) * 2 + 24;
         const u8 K = MSH(op, 0x00C0, 2) | MSK(op, 0x000F);
         PRINT_DEBUG("%-8s r%-7d %-8d", "sbiw", d, K);
         return sbiw(mcu, d, K);
@@ -2581,25 +2582,25 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     }
     case OP_SBIC: {
         const u8 A = MSH(op, 0x00F8, 3);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s %-8d %-8d", "sbic", A, b);
         return sbic(mcu, A, b);
     }
     case OP_SBIS: {
         const u8 A = MSH(op, 0x00F8, 3);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s %-8d %-8d", "sbis", A, b);
         return sbis(mcu, A, b);
     }
     case OP_SBI: {
         const u8 A = MSH(op, 0x00F8, 3);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s %-8d %-8d", "sbi", A, b);
         return sbi(mcu, A, b);
     }
     case OP_CBI: {
         const u8 A = MSH(op, 0x00F8, 3);
-        const u8 b = MSK(op, 0x0003);
+        const u8 b = MSK(op, 0x0007);
         PRINT_DEBUG("%-8s %-8d %-8d", "cbi", A, b);
         return cbi(mcu, A, b);
     }
