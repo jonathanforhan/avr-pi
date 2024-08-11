@@ -33,6 +33,13 @@
 #endif
 #endif
 
+// can't (quickly) enforce readonly bits in software
+// so just reset the values each cycle
+static void set_readonly(AVR_MCU *restrict mcu) {
+    mcu->data[REG_UCSR0A] |= 0x20; // 0010 0000
+    mcu->data[REG_UCSR0C] |= 0x06; // 0000 0110
+}
+
 /*******************************************************************************
  * Arithmetic and Logic Instructions
  ******************************************************************************/
@@ -2122,9 +2129,7 @@ void avr_mcu_init(AVR_MCU *restrict mcu) {
 
     *mcu->sp = AVR_MCU_RAMEND;
 
-    // initial values
-    mcu->data[REG_UCSR0A] |= 0x20; // 0010 0000
-    mcu->data[REG_UCSR0C] |= 0x06; // 0000 0110
+    set_readonly(mcu);
 }
 
 AVR_Result avr_program(AVR_MCU *restrict mcu, const char *restrict hex) {
@@ -2331,14 +2336,12 @@ int avr_execute(AVR_MCU *const restrict mcu) {
     case OP_BRBC: {
         const u8 s = MSK(op, 0x0007);
         const i8 k = I7_TO_I16(MSH(op, 0x03F8, 3));
-        PRINT_DEBUG("%#x", MSH(op, 0x03F8, 3));
         PRINT_DEBUG("%-8s %-8d %-8d", "brbc", s, k);
         return brbc(mcu, s, k);
     }
     case OP_BRBS: {
         const u8 s = MSK(op, 0x0007);
         const i8 k = I7_TO_I16(MSH(op, 0x03F8, 3));
-        PRINT_DEBUG("%#x", MSH(op, 0x03F8, 3));
         PRINT_DEBUG("%-8s %-8d %-8d", "brbs", s, k);
         return brbs(mcu, s, k);
     }
@@ -2880,6 +2883,7 @@ int avr_interrupt(AVR_MCU *restrict mcu) {
 void avr_cycle(AVR_MCU *restrict mcu) {
     mcu->clk += 1;
 
+    set_readonly(mcu);
     timer0_tick(mcu);
     timer1_tick(mcu);
     timer2_tick(mcu);

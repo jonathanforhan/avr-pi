@@ -162,7 +162,7 @@ static AVR_Result test_arithmetic_and_logic_instructions(void) {
 
             u16 expected = i - j;
 
-            sbiw(&mcu, 3, j);
+            sbiw(&mcu, 30, j);
 
             u16 real = *(u16 *)&mcu.reg[30];
 
